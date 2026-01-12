@@ -1,3 +1,4 @@
+
 export enum CardType {
   Slash = 'SLASH', // 斬撃（攻撃カード）
   Blood = 'BLOOD', // 鮮血（リソース生成カード）
@@ -56,6 +57,7 @@ export interface PlayerState {
   discard: Card[]; // 捨て札
   field: Card[]; // このターンにプレイしたカード（フィールド）
   bloodPool: Card[]; // ブラッドプール（ダメージを受けた際や自傷コストで移動したカード）
+  bloodCircuit: Card[]; // 血廻（強化や追憶強化で使用したカードが送られる場所。リコールのコストになる）
   regalia: RegaliaCard | null; // 神器
   bloodRecall: BloodRecall | null; // 選択したブラッドリコール
   isRegaliaAwakened: boolean; // ライフ10以下で発動する覚醒状態

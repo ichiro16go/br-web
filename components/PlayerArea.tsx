@@ -25,6 +25,8 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
 }) => {
   const [selectedRegalia, setSelectedRegalia] = useState<RegaliaCard | null>(null);
   const [showCraftModal, setShowCraftModal] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [showCircuitModal, setShowCircuitModal] = useState(false);
 
   const handleRegaliaClick = () => {
       if (player.regalia) {
@@ -36,6 +38,9 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
       onSelfHarm();
       setSelectedRegalia(null);
   };
+
+  // 総枚数計算（循環カードのみ）
+  const totalCards = player.deck.length + player.hand.length + player.discard.length + player.field.length + player.bloodPool.length + player.bloodCircuit.length;
   
   // -- ボード上のゾーン定義 --
 
@@ -78,7 +83,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                          </div>
                          {/* 発動ボタンオーバーレイ */}
                          <div className="absolute inset-0 bg-black/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                             {player.bloodPool.length >= player.bloodRecall.cost ? (
+                             {player.bloodCircuit.length >= player.bloodRecall.cost ? (
                                  <button 
                                     onClick={onActivateBloodRecall}
                                     className="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded font-bold"
@@ -86,7 +91,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                                      ACTIVATE
                                  </button>
                              ) : (
-                                 <span className="text-xs text-gray-500">Not enough Blood</span>
+                                 <span className="text-xs text-gray-500">Need {player.bloodRecall.cost} Circuit</span>
                              )}
                          </div>
                     </div>
@@ -98,38 +103,12 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
       </div>
   );
 
-  // 2. ライフゾーン（中央左）
-  const LifeZone = (
-      <div className="w-48 flex flex-col p-1">
-          <Zone title="Life Area" count={player.life} className="h-full bg-transparent border-none">
-              <div className="relative w-full h-full flex flex-col items-center justify-center">
-                  <div className="flex -space-x-10 mb-4 z-10">
-                      {player.lifeCards.slice(0, 10).map((c, i) => (
-                           <div key={c.id} className="transform rotate-90 origin-center hover:z-20 transition-all">
-                                <Card card={c} size="xs" isFaceDown={true} />
-                           </div>
-                      ))}
-                      {player.lifeCards.length < 10 && Array(10 - player.lifeCards.length).fill(0).map((_,i) => (
-                          <div key={i} className="w-8 h-12 border border-dashed border-red-900/30"></div>
-                      ))}
-                  </div>
-                  
-                  <div className="flex flex-col -space-y-12 z-0">
-                      {player.lifeCards.slice(10).map((c, i) => (
-                          <Card key={c.id} card={c} size="xs" isFaceDown={true} />
-                      ))}
-                  </div>
-              </div>
-          </Zone>
-      </div>
-  );
-
-  // 3. メインアクションゾーン（中央）
+  // 2. メインアクションゾーン（中央） - ライフゾーン削除により幅を調整
   const MainActionZone = (
-      <div className="flex-1 flex flex-col p-1 gap-1 w-full max-w-7/8 mx-auto">
+      <div className="flex-1 flex flex-col p-1 gap-1 w-full max-w-4xl mx-auto px-4">
           {/* 上半分: フィールド */}
           <div className={`flex-1 flex flex-col ${isOpponent ? 'order-2' : 'order-1'}`}>
-               <Zone title={isOpponent ? "Opponent Field" : "Your Field"} className="flex-1 bg-black/20 flex items-center justify-center border-red-500/20 overflow-hidden">
+               <Zone title={isOpponent ? "Opponent Field" : "Your Field"} className="flex-1 bg-black/20 flex items-center justify-center border-red-500/20 overflow-hidden min-h-[160px]">
                     <div className="flex items-center justify-center w-full px-2 transition-all">
                         {player.field.map((c, i) => {
                             const count = player.field.length;
@@ -150,40 +129,71 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                </Zone>
           </div>
 
-          {/* 下半分: ブラッドプール */}
-          <div className={`h-28 ${isOpponent ? 'order-1' : 'order-2'}`}>
-              <Zone title="Blood Pool" count={player.bloodPool.length} className="h-full bg-red-950/10 border-red-900/30 flex items-center justify-start">
-                  <div className="flex -space-x-8 px-4 overflow-x-auto w-full custom-scrollbar py-2 items-center">
-                      {player.bloodPool.map(c => (
-                          <Card key={c.id} card={c} size="sm" isFaceDown={true} />
-                      ))}
-                  </div>
-              </Zone>
+          {/* 下半分: ブラッドプール & 血廻 (横並び) */}
+          <div className={`h-28 flex gap-2 ${isOpponent ? 'order-1' : 'order-2'}`}>
+              <div className="flex-1">
+                  <Zone title="Blood Pool" count={player.bloodPool.length} className="h-full bg-red-950/10 border-red-900/30 flex items-center justify-start">
+                      <div className="flex -space-x-8 px-4 overflow-x-auto w-full custom-scrollbar py-2 items-center">
+                          {player.bloodPool.map(c => (
+                              <Card key={c.id} card={c} size="sm" isFaceDown={false} />
+                          ))}
+                      </div>
+                  </Zone>
+              </div>
+              <div className="w-32 md:w-48 border-l border-red-900/30 cursor-pointer hover:bg-purple-900/10 transition-colors" onClick={() => setShowCircuitModal(true)}>
+                  <Zone title="Blood Circuit (Click)" count={player.bloodCircuit.length} className="h-full bg-purple-900/20 border-purple-500/30 flex items-center justify-center">
+                      <div className="relative">
+                          {player.bloodCircuit.map((c, i) => (
+                              <div key={c.id} className="absolute top-0 left-0" style={{ transform: `translate(${i * 2}px, ${i * -2}px)` }}>
+                                  <Card card={c} size="sm" isFaceDown={false} />
+                              </div>
+                          ))}
+                          {player.bloodCircuit.length === 0 && (
+                              <span className="text-xs text-purple-500/50">Empty</span>
+                          )}
+                          {player.bloodCircuit.length > 0 && (
+                              <div className="relative" style={{ opacity: 0 }}>
+                                  <Card card={player.bloodCircuit[0]} size="sm" />
+                              </div>
+                          )}
+                      </div>
+                  </Zone>
+              </div>
           </div>
       </div>
   );
 
-  // 4. ライブラリゾーン（右端）
+  // 3. ライブラリゾーン（右端）
   const LibraryZone = (
       <div className="w-24 md:w-32 flex flex-col gap-2 p-1">
-          <Zone title="Discard" count={player.discard.length} className="h-1/2 flex items-center justify-center bg-black/40">
-              {player.discard.length > 0 ? (
-                  <Card card={player.discard[player.discard.length - 1]} size="sm" />
-              ) : (
-                  <div className="text-xs text-gray-600">Empty</div>
-              )}
+          <Zone title="Discard" count={player.discard.length} className="h-1/2 flex items-center justify-center bg-black/40 cursor-pointer hover:bg-black/60 transition-colors">
+              <div onClick={() => setShowDiscardModal(true)} className="w-full h-full flex items-center justify-center">
+                  {player.discard.length > 0 ? (
+                      <Card card={player.discard[player.discard.length - 1]} size="sm" />
+                  ) : (
+                      <div className="text-xs text-gray-600">Empty</div>
+                  )}
+              </div>
           </Zone>
-          <Zone title="Deck" count={player.deck.length} className="h-1/2 flex items-center justify-center bg-black/40">
+          <Zone title="Deck" className="h-1/2 flex items-center justify-center bg-black/40 relative group">
                {player.deck.length > 0 ? (
-                   <div className="w-16 h-24 bg-red-900 rounded border-2 border-red-700 shadow-md"></div>
+                   <div className="w-16 h-24 bg-red-900 rounded border-2 border-red-700 shadow-md flex items-center justify-center">
+                       <span className="text-3xl font-cinzel font-bold text-red-200 drop-shadow-md">{player.deck.length}</span>
+                   </div>
                ) : (
                    <div className="text-xs text-gray-600">0</div>
                )}
+               {/* Total枚数表示を外に出して常時見えるようにする */}
+               <div className="absolute -bottom-6 w-full text-center">
+                   <span className="text-xs text-gray-400 font-bold bg-black/80 px-2 py-0.5 rounded border border-gray-700">
+                       Total: {totalCards}
+                   </span>
+               </div>
           </Zone>
       </div>
   );
 
-  // 5. 手札オーバーレイ
+  // 4. 手札オーバーレイ
   const HandOverlay = (
       <div className={`absolute left-0 right-0 flex justify-center z-50 pointer-events-none ${isOpponent ? '-top-12' : '-bottom-12'}`}>
            <div className={`
@@ -239,7 +249,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
     <div className={`relative w-full h-full flex ${isOpponent ? 'flex-col-reverse' : 'flex-col'}`}>
         <div className="flex-1 flex w-full justify-center">
             {IdentityZone}
-            {LifeZone}
+            {/* LifeZone は削除 */}
             {MainActionZone}
             {LibraryZone}
         </div>
@@ -247,16 +257,25 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
         {HandOverlay}
         {CraftButton}
 
-        {/* スタッツ (ATK, Actions, Blood) */}
+        {/* スタッツ (LIFE, ATK, Actions, Blood, Circuit) */}
         <div className={`absolute right-4 ${isOpponent ? 'top-4' : 'bottom-44'} pointer-events-none flex flex-col items-end gap-1`}>
             <div className="text-4xl font-cinzel font-bold text-white/10 drop-shadow-md">
                 {isOpponent ? 'OPPONENT' : 'PLAYER'}
             </div>
             
             <div className="flex flex-col items-end bg-black/60 p-2 rounded border border-red-900/30 backdrop-blur-sm">
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-red-500 uppercase font-bold">ATK</span>
-                    <span className="text-2xl font-bold text-yellow-500 drop-shadow-md">{player.attackTotal}</span>
+                
+                {/* ライフとATKを並べて表示 */}
+                <div className="flex items-center gap-6 mb-2">
+                    <div className="flex flex-col items-end">
+                        <span className="text-xs text-red-500 uppercase font-bold tracking-widest">LIFE</span>
+                        <span className="text-3xl font-bold text-red-500 drop-shadow-md">{player.life}</span>
+                    </div>
+                    <div className="w-px h-10 bg-red-900/50"></div>
+                    <div className="flex flex-col items-end">
+                        <span className="text-xs text-yellow-500 uppercase font-bold tracking-widest">ATK</span>
+                        <span className="text-3xl font-bold text-yellow-500 drop-shadow-md">{player.attackTotal}</span>
+                    </div>
                 </div>
                 
                 <div className="w-full h-px bg-red-900/50 my-1"></div>
@@ -272,6 +291,12 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                         <span className="text-[10px] text-red-400 uppercase">Blood</span>
                         <span className={`text-lg font-bold ${player.bloodPool.length > 0 ? 'text-white' : 'text-gray-500'}`}>
                             {player.bloodPool.length}
+                        </span>
+                    </div>
+                     <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-purple-400 uppercase">Circuit</span>
+                        <span className={`text-lg font-bold ${player.bloodCircuit.length > 0 ? 'text-purple-300' : 'text-gray-500'}`}>
+                            {player.bloodCircuit.length}
                         </span>
                     </div>
                 </div>
@@ -390,6 +415,56 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                     </div>
                 </div>
              </div>
+        )}
+
+        {/* 捨て札確認モーダル */}
+        {showDiscardModal && (
+            <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowDiscardModal(false)}>
+                <div className="bg-gray-900 border-2 border-gray-700 rounded-lg max-w-3xl w-full p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
+                    <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={() => setShowDiscardModal(false)}>✕</button>
+                    <h3 className="text-2xl font-cinzel text-gray-400 mb-6 border-b border-gray-700 pb-2 flex justify-between items-center">
+                        <span>Discard Pile</span>
+                        <span className="text-sm font-sans text-gray-600">Total: {player.discard.length}</span>
+                    </h3>
+                    
+                    {player.discard.length === 0 ? (
+                        <div className="text-center text-gray-600 py-12">No cards in discard pile.</div>
+                    ) : (
+                        <div className="flex flex-wrap gap-2 justify-center">
+                            {player.discard.map((c, i) => (
+                                <div key={i} className="relative group">
+                                     <Card card={c} size="sm" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
+        {/* 血廻（Blood Circuit）確認モーダル */}
+        {showCircuitModal && (
+            <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowCircuitModal(false)}>
+                <div className="bg-gray-900 border-2 border-purple-700 rounded-lg max-w-3xl w-full p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
+                    <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={() => setShowCircuitModal(false)}>✕</button>
+                    <h3 className="text-2xl font-cinzel text-purple-400 mb-6 border-b border-purple-700 pb-2 flex justify-between items-center">
+                        <span>Blood Circuit</span>
+                        <span className="text-sm font-sans text-purple-300">Total: {player.bloodCircuit.length}</span>
+                    </h3>
+                    
+                    {player.bloodCircuit.length === 0 ? (
+                        <div className="text-center text-gray-600 py-12">No cards in Blood Circuit.</div>
+                    ) : (
+                        <div className="flex flex-wrap gap-2 justify-center">
+                            {player.bloodCircuit.map((c, i) => (
+                                <div key={i} className="relative group">
+                                     <Card card={c} size="sm" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         )}
     </div>
   );
