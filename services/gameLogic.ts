@@ -1,10 +1,17 @@
 import { PlayerState, Card, CardType, RegaliaCard, RegaliaStats } from '../types';
-import { 
-  INITIAL_LIFE, STARTER_DECK_SLASH_COUNT, STARTER_DECK_BLOOD_COUNT, 
-  createStarterSlash, createStarterBlood, BLOOD_RECALLS, 
-  createSlashFlash, createMasterySlashFlash, createRedScarletBlood, createTorrentRedStarBlood, createLambda, createObotsuFragment
-} from '../constants';
+
+import {
+    createStarterSlash, createStarterBlood, 
+    createSlashFlash, createMasterySlashFlash, createRedScarletBlood, 
+    createTorrentRedStarBlood, createLambda, createObotsuFragment
+  } from '../constants/arts';
+  import { BLOOD_RECALLS } from '../constants/jinki';
 import { shuffle } from '../utils/common';
+
+
+export const INITIAL_LIFE = 20; // 初期ライフ
+export const STARTER_DECK_SLASH_COUNT = 4; // 初期デッキの斬撃枚数
+export const STARTER_DECK_BLOOD_COUNT = 6; // 初期デッキの鮮血枚数
 
 /**
  * プレイヤーの現在の神器ステータス（覚醒状態を考慮）を取得する

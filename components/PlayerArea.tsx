@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PlayerState, RegaliaCard } from '../types';
 import { Card } from './Card';
 import { Zone } from './Zone';
-import { CRAFT_RECIPES } from '../constants';
+import { CRAFT_RECIPES } from '../constants/arts';
 import { RegaliaModal, CraftModal, CardListModal } from './GameModals';
 
 interface PlayerAreaProps {

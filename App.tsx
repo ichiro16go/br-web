@@ -2,7 +2,8 @@ import React, { useReducer, useEffect, useState, useRef } from 'react';
 import { gameReducer } from './services/engine';
 import { createPlayer } from './services/gameLogic';
 import { GameState, Phase } from './types';
-import { REGALIA_LIST, RECALL_SETS, createRecallCard, BLOOD_RECALLS } from './constants';
+import { REGALIA_LIST, BLOOD_RECALLS } from './constants/jinki';
+import { RECALL_SETS, createRecallCard } from './constants/recall';
 import { PlayerArea } from './components/PlayerArea';
 import { Market } from './components/Market';
 

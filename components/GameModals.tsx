@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card as CardType, RegaliaCard, PlayerState, RegaliaStats } from '../types';
 import { Card } from './Card';
-import { CRAFT_RECIPES } from '../constants';
+import { CRAFT_RECIPES } from '../constants/arts';
 
 // ----------------------------------------------------------------------
 // 神器詳細モーダル

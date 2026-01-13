@@ -1,5 +1,5 @@
 import { GameState, Card, ActionType, CardType } from '../types';
-import { CRAFT_RECIPES } from '../constants';
+import { CRAFT_RECIPES } from '../constants/arts';
 
 /**
  * CPUの行動を決定する

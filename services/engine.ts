@@ -5,7 +5,7 @@ import {
   createStarterBlood, createUpgradedSlash, createSlashFlash, 
   createMasterySlashFlash, createMadness, createObotsuFragment, 
   CRAFT_RECIPES, createStarterSlash
-} from '../constants';
+} from '../constants/arts';
 import { 
   drawCard, checkAwakening, resolveFieldEntryEffects, getRegaliaStats, executeRemembranceEnhancement, 
   recalculateAttackTotal, resolveStartOfTurnEffects, performCleanup
