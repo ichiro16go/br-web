@@ -1,6 +1,7 @@
 import React, { useReducer, useEffect, useState, useRef } from 'react';
-import { gameReducer, createPlayer } from './services/engine';
-import { GameState, Phase, RegaliaCard, PlayerState, CardType } from './types';
+import { gameReducer } from './services/engine';
+import { createPlayer } from './services/gameLogic';
+import { GameState, Phase } from './types';
 import { REGALIA_LIST, RECALL_SETS, createRecallCard, BLOOD_RECALLS } from './constants';
 import { PlayerArea } from './components/PlayerArea';
 import { Market } from './components/Market';
@@ -71,27 +72,49 @@ const App: React.FC = () => {
               <h3 className="text-xl font-bold text-red-400 mb-1">{r.name}</h3>
               <p className="text-xs mb-2 text-gray-500 italic">{r.description.split('。')[0]}</p>
               
-              <div className="bg-black/30 p-2 rounded mb-2 flex-1">
-                 <p className="text-xs text-gray-300 font-bold mb-1">[Stats]</p>
-                 <div className="grid grid-cols-3 gap-1 text-[10px] text-gray-400 text-center">
-                    <div className="bg-gray-900/50 p-1 rounded">
-                        <div className="text-white font-bold">{r.handSize}</div>
-                        <div>Hand</div>
-                    </div>
-                    <div className="bg-gray-900/50 p-1 rounded">
-                        <div className="text-red-400 font-bold">{r.selfHarmCost}</div>
-                        <div>Dmg</div>
-                    </div>
-                    <div className="bg-gray-900/50 p-1 rounded">
-                        <div className="text-blue-400 font-bold">{r.bloodPact}</div>
-                        <div>Pact</div>
-                    </div>
+              <div className="bg-black/30 p-2 rounded mb-2 flex-1 flex flex-col gap-2">
+                 {/* Normal Stats */}
+                 <div>
+                     <div className="text-[10px] text-gray-400 font-bold border-b border-gray-700 mb-1">Normal</div>
+                     <div className="grid grid-cols-3 gap-1 text-[10px] text-gray-400 text-center">
+                        <div className="bg-gray-900/50 p-1 rounded">
+                            <div className="text-white font-bold">{r.base.handSize}</div>
+                            <div>Hand</div>
+                        </div>
+                        <div className="bg-gray-900/50 p-1 rounded">
+                            <div className="text-red-400 font-bold">{r.base.selfHarmCost}</div>
+                            <div>Dmg</div>
+                        </div>
+                        <div className="bg-gray-900/50 p-1 rounded">
+                            <div className="text-blue-400 font-bold">{r.base.bloodPact}</div>
+                            <div>Pact</div>
+                        </div>
+                     </div>
+                 </div>
+
+                 {/* Awakened Stats */}
+                 <div>
+                     <div className="text-[10px] text-red-400 font-bold border-b border-red-900/30 mb-1">Awakened (Life≤10)</div>
+                     <div className="grid grid-cols-3 gap-1 text-[10px] text-gray-400 text-center">
+                        <div className="bg-gray-900/50 p-1 rounded border border-red-900/20">
+                            <div className="text-white font-bold">{r.awakened.handSize}</div>
+                            <div>Hand</div>
+                        </div>
+                        <div className="bg-gray-900/50 p-1 rounded border border-red-900/20">
+                            <div className="text-red-400 font-bold">{r.awakened.selfHarmCost}</div>
+                            <div>Dmg</div>
+                        </div>
+                        <div className="bg-gray-900/50 p-1 rounded border border-red-900/20">
+                            <div className="text-blue-400 font-bold">{r.awakened.bloodPact}</div>
+                            <div>Pact</div>
+                        </div>
+                     </div>
                  </div>
               </div>
 
               <div className="text-xs space-y-1 text-gray-400 bg-red-950/20 p-2 rounded border border-red-900/20">
                  <p className="font-bold text-red-300">Self Harm Effect:</p>
-                 <p className="leading-tight">{r.selfHarmEffectDesc}</p>
+                 <p className="leading-tight">{r.base.selfHarmEffectDesc}</p>
               </div>
             </div>
           ))}

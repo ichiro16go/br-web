@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { PlayerState, Card as CardType, RegaliaCard } from '../types';
+import { PlayerState, RegaliaCard } from '../types';
 import { Card } from './Card';
 import { Zone } from './Zone';
 import { CRAFT_RECIPES } from '../constants';
+import { RegaliaModal, CraftModal, CardListModal } from './GameModals';
 
 interface PlayerAreaProps {
   player: PlayerState;
@@ -54,6 +55,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                         card={player.regalia} 
                         size="md" 
                         onClick={handleRegaliaClick} 
+                        isAwakened={player.isRegaliaAwakened}
                     />
                      {isCurrentUser && !player.regalia.isTapped && (
                         <div className="text-[10px] text-red-400 text-center mt-1 cursor-pointer hover:underline" onClick={handleRegaliaClick}>
@@ -71,7 +73,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                      </div>
                  ) : (
                     <div className="relative group">
-                         <div className="w-24 h-36 bg-red-900 border-2 border-red-500 rounded flex flex-col p-1 shadow-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform">
+                         <div className={`w-24 h-36 border-2 rounded flex flex-col p-1 shadow-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform ${player.isRegaliaAwakened ? 'bg-red-900 border-red-500' : 'bg-gray-900 border-gray-700 opacity-80'}`}>
                              <div className="text-[10px] text-red-200 font-bold border-b border-red-500/50 text-center">{player.bloodRecall.name}</div>
                              <div className="flex-1 text-[8px] text-gray-200 p-1 flex items-center justify-center leading-tight">
                                  {player.bloodRecall.description}
@@ -80,18 +82,29 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                                  <span>Cost: {player.bloodRecall.cost}</span>
                                  <span>{player.bloodRecall.timing}</span>
                              </div>
+                             {!player.isRegaliaAwakened && (
+                                 <div className="absolute inset-x-0 bottom-8 flex justify-center pointer-events-none">
+                                     <span className="bg-black/80 text-gray-400 text-[10px] font-bold border border-gray-600 px-2 py-0.5 rounded shadow-lg backdrop-blur-sm">
+                                         LOCKED
+                                     </span>
+                                 </div>
+                             )}
                          </div>
                          {/* 発動ボタンオーバーレイ */}
                          <div className="absolute inset-0 bg-black/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                             {player.bloodCircuit.length >= player.bloodRecall.cost ? (
-                                 <button 
-                                    onClick={onActivateBloodRecall}
-                                    className="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded font-bold"
-                                 >
-                                     ACTIVATE
-                                 </button>
+                             {player.isRegaliaAwakened ? (
+                                 player.bloodCircuit.length >= player.bloodRecall.cost ? (
+                                    <button 
+                                        onClick={onActivateBloodRecall}
+                                        className="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded font-bold"
+                                    >
+                                        ACTIVATE
+                                    </button>
+                                 ) : (
+                                    <span className="text-xs text-gray-500">Need {player.bloodRecall.cost} Circuit</span>
+                                 )
                              ) : (
-                                 <span className="text-xs text-gray-500">Need {player.bloodRecall.cost} Circuit</span>
+                                 <span className="text-xs text-red-500 font-bold">Must Awaken</span>
                              )}
                          </div>
                     </div>
@@ -103,7 +116,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
       </div>
   );
 
-  // 2. メインアクションゾーン（中央） - ライフゾーン削除により幅を調整
+  // 2. メインアクションゾーン（中央）
   const MainActionZone = (
       <div className="flex-1 flex flex-col p-1 gap-1 w-full max-w-4xl mx-auto px-4">
           {/* 上半分: フィールド */}
@@ -183,7 +196,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                ) : (
                    <div className="text-xs text-gray-600">0</div>
                )}
-               {/* Total枚数表示を外に出して常時見えるようにする */}
+               {/* Total枚数表示 */}
                <div className="absolute -bottom-6 w-full text-center">
                    <span className="text-xs text-gray-400 font-bold bg-black/80 px-2 py-0.5 rounded border border-gray-700">
                        Total: {totalCards}
@@ -237,19 +250,10 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
       </div>
   );
 
-  const sortedRecipes = [...CRAFT_RECIPES].sort((a, b) => {
-      const aMatch = a.inputMatcher(player.hand) !== null;
-      const bMatch = b.inputMatcher(player.hand) !== null;
-      if (aMatch && !bMatch) return -1;
-      if (!aMatch && bMatch) return 1;
-      return 0;
-  });
-
   return (
     <div className={`relative w-full h-full flex ${isOpponent ? 'flex-col-reverse' : 'flex-col'}`}>
         <div className="flex-1 flex w-full justify-center">
             {IdentityZone}
-            {/* LifeZone は削除 */}
             {MainActionZone}
             {LibraryZone}
         </div>
@@ -257,7 +261,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
         {HandOverlay}
         {CraftButton}
 
-        {/* スタッツ (LIFE, ATK, Actions, Blood, Circuit) */}
+        {/* スタッツ表示 */}
         <div className={`absolute right-4 ${isOpponent ? 'top-4' : 'bottom-44'} pointer-events-none flex flex-col items-end gap-1`}>
             <div className="text-4xl font-cinzel font-bold text-white/10 drop-shadow-md">
                 {isOpponent ? 'OPPONENT' : 'PLAYER'}
@@ -265,7 +269,6 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
             
             <div className="flex flex-col items-end bg-black/60 p-2 rounded border border-red-900/30 backdrop-blur-sm">
                 
-                {/* ライフとATKを並べて表示 */}
                 <div className="flex items-center gap-6 mb-2">
                     <div className="flex flex-col items-end">
                         <span className="text-xs text-red-500 uppercase font-bold tracking-widest">LIFE</span>
@@ -303,168 +306,41 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
             </div>
         </div>
 
-        {/* 神器詳細モーダル */}
+        {/* モーダル群 */}
         {selectedRegalia && (
-            <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setSelectedRegalia(null)}>
-                <div className="bg-gray-900 border-2 border-red-800 rounded-lg max-w-md w-full p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-                    <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={() => setSelectedRegalia(null)}>✕</button>
-                    <h3 className="text-2xl font-cinzel text-red-500 mb-4 border-b border-red-900 pb-2 flex justify-between items-end">
-                        <span>{selectedRegalia.name}</span>
-                        <span className="text-sm text-gray-500 font-sans">Year: {selectedRegalia.year}</span>
-                    </h3>
-                    <div className="space-y-4 mb-6">
-                        <p className="text-gray-300 italic">{selectedRegalia.description}</p>
-                        <div className="grid grid-cols-3 gap-2 text-center bg-black/40 p-3 rounded">
-                             <div>
-                                 <div className="text-xs text-gray-500 uppercase">Hand</div>
-                                 <div className="text-xl font-bold text-blue-400">{selectedRegalia.handSize}</div>
-                             </div>
-                             <div>
-                                 <div className="text-xs text-gray-500 uppercase">Self Harm</div>
-                                 <div className="text-xl font-bold text-red-400">{selectedRegalia.selfHarmCost}</div>
-                             </div>
-                             <div>
-                                 <div className="text-xs text-gray-500 uppercase">Action</div>
-                                 <div className="text-xl font-bold text-purple-400">{selectedRegalia.bloodPact}</div>
-                             </div>
-                        </div>
-                        <div className="bg-red-950/30 border border-red-900/50 p-4 rounded">
-                            <h4 className="text-red-400 font-bold mb-2 text-sm uppercase">自傷効果 (Self Harm Effect)</h4>
-                            <p className="text-sm text-gray-200">{selectedRegalia.selfHarmEffectDesc}</p>
-                        </div>
-                    </div>
-                    <div className="flex justify-end gap-3">
-                        <button className="px-4 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-800" onClick={() => setSelectedRegalia(null)}>閉じる</button>
-                        {isCurrentUser && !player.regalia?.isTapped && (
-                            <button 
-                                className={`px-6 py-2 rounded font-bold shadow-lg flex flex-col items-center ${player.lifeCards.length >= selectedRegalia.selfHarmCost ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
-                                onClick={handleConfirmSelfHarm}
-                                disabled={player.lifeCards.length < selectedRegalia.selfHarmCost}
-                            >
-                                <span>自傷して効果発動</span>
-                                {player.lifeCards.length < selectedRegalia.selfHarmCost && <span className="text-[10px] font-normal">(ライフ不足)</span>}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
+            <RegaliaModal 
+                regalia={selectedRegalia}
+                player={player}
+                isCurrentUser={isCurrentUser}
+                onClose={() => setSelectedRegalia(null)}
+                onSelfHarm={handleConfirmSelfHarm}
+            />
         )}
 
-        {/* 強化（Craft）モーダル */}
         {showCraftModal && (
-             <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowCraftModal(false)}>
-                <div className="bg-gray-900 border-2 border-purple-800 rounded-lg max-w-2xl w-full p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto custom-scrollbar pb-32" onClick={e => e.stopPropagation()}>
-                    <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={() => setShowCraftModal(false)}>✕</button>
-                    <h3 className="text-2xl font-cinzel text-purple-400 mb-6 border-b border-purple-900 pb-2 flex justify-between items-center">
-                        <span>Arts Enhancement</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500 font-sans">Remaining Acts:</span>
-                            <span className={`text-lg font-bold ${player.remainingActions > 0 ? 'text-white' : 'text-red-500'}`}>{player.remainingActions}</span>
-                        </div>
-                    </h3>
-                    
-                    <div className="space-y-4">
-                        {sortedRecipes.map(recipe => {
-                            const matchIds = recipe.inputMatcher(player.hand);
-                            const hasAction = player.remainingActions > 0;
-                            const canCraft = matchIds !== null && hasAction;
-                            const resultPreview = recipe.createResult();
-                            const isSpecial = recipe.id === 'craft-sakura'; 
-
-                            return (
-                                <div key={recipe.id} className={`
-                                    p-4 rounded border flex gap-4 items-center transition-colors
-                                    ${canCraft 
-                                        ? (isSpecial ? 'bg-pink-900/20 border-pink-500' : 'bg-purple-900/20 border-purple-500') 
-                                        : 'bg-gray-800/50 border-gray-700 opacity-60'}
-                                `}>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className={`font-bold text-lg ${isSpecial ? 'text-pink-300' : 'text-gray-200'}`}>
-                                                {recipe.name}
-                                            </span>
-                                            {canCraft && <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">READY</span>}
-                                            {!hasAction && matchIds !== null && <span className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">NO ACT</span>}
-                                        </div>
-                                        <p className="text-sm text-gray-400 mb-2">{recipe.description}</p>
-                                        <div className={`text-xs ${isSpecial ? 'text-pink-400' : 'text-purple-300'}`}>
-                                            Result: {resultPreview.name} {resultPreview.level > 0 && `(Lv.${resultPreview.level})`}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <button 
-                                            onClick={() => {
-                                                if (canCraft && matchIds) {
-                                                    onCraft(recipe.id, matchIds);
-                                                    setShowCraftModal(false);
-                                                }
-                                            }}
-                                            disabled={!canCraft}
-                                            className={`px-4 py-2 rounded font-bold shadow-lg min-w-[100px] ${
-                                                canCraft 
-                                                ? (isSpecial ? 'bg-pink-600 hover:bg-pink-500 text-white' : 'bg-purple-600 hover:bg-purple-500 text-white')
-                                                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                            }`}
-                                        >
-                                            Craft
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-             </div>
+             <CraftModal 
+                player={player}
+                onClose={() => setShowCraftModal(false)}
+                onCraft={onCraft}
+             />
         )}
 
-        {/* 捨て札確認モーダル */}
         {showDiscardModal && (
-            <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowDiscardModal(false)}>
-                <div className="bg-gray-900 border-2 border-gray-700 rounded-lg max-w-3xl w-full p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
-                    <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={() => setShowDiscardModal(false)}>✕</button>
-                    <h3 className="text-2xl font-cinzel text-gray-400 mb-6 border-b border-gray-700 pb-2 flex justify-between items-center">
-                        <span>Discard Pile</span>
-                        <span className="text-sm font-sans text-gray-600">Total: {player.discard.length}</span>
-                    </h3>
-                    
-                    {player.discard.length === 0 ? (
-                        <div className="text-center text-gray-600 py-12">No cards in discard pile.</div>
-                    ) : (
-                        <div className="flex flex-wrap gap-2 justify-center">
-                            {player.discard.map((c, i) => (
-                                <div key={i} className="relative group">
-                                     <Card card={c} size="sm" />
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+            <CardListModal 
+                title="Discard Pile"
+                cards={player.discard}
+                colorTheme="gray"
+                onClose={() => setShowDiscardModal(false)}
+            />
         )}
 
-        {/* 血廻（Blood Circuit）確認モーダル */}
         {showCircuitModal && (
-            <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowCircuitModal(false)}>
-                <div className="bg-gray-900 border-2 border-purple-700 rounded-lg max-w-3xl w-full p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
-                    <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={() => setShowCircuitModal(false)}>✕</button>
-                    <h3 className="text-2xl font-cinzel text-purple-400 mb-6 border-b border-purple-700 pb-2 flex justify-between items-center">
-                        <span>Blood Circuit</span>
-                        <span className="text-sm font-sans text-purple-300">Total: {player.bloodCircuit.length}</span>
-                    </h3>
-                    
-                    {player.bloodCircuit.length === 0 ? (
-                        <div className="text-center text-gray-600 py-12">No cards in Blood Circuit.</div>
-                    ) : (
-                        <div className="flex flex-wrap gap-2 justify-center">
-                            {player.bloodCircuit.map((c, i) => (
-                                <div key={i} className="relative group">
-                                     <Card card={c} size="sm" />
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+            <CardListModal 
+                title="Blood Circuit"
+                cards={player.bloodCircuit}
+                colorTheme="purple"
+                onClose={() => setShowCircuitModal(false)}
+            />
         )}
     </div>
   );

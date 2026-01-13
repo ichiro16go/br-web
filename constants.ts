@@ -1,13 +1,12 @@
 import { Card, CardType, RegaliaCard, BloodRecall } from './types';
+import { generateId } from './utils/common';
 
 export const INITIAL_LIFE = 20; // 初期ライフ
 export const STARTER_DECK_SLASH_COUNT = 4; // 初期デッキの斬撃枚数
 export const STARTER_DECK_BLOOD_COUNT = 6; // 初期デッキの鮮血枚数
 
-// --- ID生成ヘルパー ---
-const generateId = (prefix: string) => `${prefix}-${Math.random().toString(36).substr(2, 9)}`;
+// --- 初期カード生成ファクトリ ---
 
-// --- 初期カード定義 ---
 export const createStarterSlash = (): Card => ({
   id: generateId('slash'),
   name: '斬撃', // Slash (I)
@@ -28,7 +27,7 @@ export const createStarterBlood = (): Card => ({
   description: 'ブラッドプールにブラッドカードを1枚加える。'
 });
 
-// --- 上位アーツカード定義 ---
+// --- 上位アーツ（強化カード）生成ファクトリ ---
 
 // Level 2 Slash: 斬撃一閃
 export const createSlashFlash = (): Card => ({
@@ -85,6 +84,7 @@ export const createSakuraNagashi = (): Card => ({
   description: '[攻撃]+1, 1血ブラッド, 【発火】(デッキから1枚ドロー)'
 });
 
+// 災厄カード: 発狂
 export const createMadness = (): Card => ({
   id: generateId('calamity-madness'),
   name: '発狂',
@@ -95,6 +95,7 @@ export const createMadness = (): Card => ({
   description: '手札にあると邪魔になる。プレイ不可。'
 });
 
+// アイテム: オボツの欠片
 export const createObotsuFragment = (): Card => ({
   id: generateId('item-fragment'),
   name: 'オボツの欠片',
@@ -102,18 +103,35 @@ export const createObotsuFragment = (): Card => ({
   attack: 1,
   cost: 0,
   level: 0,
-  description: 'オボツカグラの欠片。持っていると強くなるかもしれない。'
+  description: '【不屈】(場に残る), [攻撃]+1。ターン開始時、契告書から「赤血」を1枚プールに加える。'
 });
 
-// 機翼の藍の効果で出現するトークン
+// 機翼の藍の効果で出現するトークン: ラムダ
 export const createLambda = (): Card => ({
     id: generateId('token-lambda'),
     name: '自律人器群【ラムダ】',
     type: CardType.Slash,
-    attack: 2,
+    attack: 1,
     cost: 0,
     level: 0,
-    description: '【藍】の効果で召喚された自律兵器。[攻撃]+2'
+    description: '【藍】の効果で召喚された自律兵器。[攻撃]+1'
+});
+
+// リコールカードの汎用生成関数
+export const createRecallCard = (template: Omit<Card, 'id'>): Card => ({
+  ...template,
+  id: generateId('recall')
+});
+
+// 古い実装互換のための強化アーツ生成（必要であれば使用）
+export const createUpgradedSlash = (level: number): Card => ({
+  id: generateId(`slash-${level}`),
+  name: level === 2 ? '斬撃一閃' : '絶技【斬閃】',
+  type: CardType.Slash,
+  attack: level === 2 ? 3 : 6,
+  cost: 0,
+  level: level,
+  description: level === 2 ? '[攻撃] +3' : '[攻撃] +6'
 });
 
 // --- 強化レシピ定義 ---
@@ -186,6 +204,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
 ];
 
 // --- 神器（Regalia）の定義 (全8種) ---
+// base: 覚醒前, awakened: 覚醒後
 export const REGALIA_LIST: RegaliaCard[] = [
   {
     id: 'regalia-shiragane',
@@ -195,11 +214,15 @@ export const REGALIA_LIST: RegaliaCard[] = [
     cost: 0,
     level: 0,
     description: '1980年代に観測された神器。',
-    handSize: 3,
-    bloodPact: 2,
-    selfHarmCost: 2,
-    selfHarmEffectDesc: '手札にある「斬撃」1枚を「斬撃一閃」に強化する。', // 名前変更に合わせて更新
-    year: 1980
+    year: 1980,
+    base: {
+        handSize: 3, bloodPact: 2, selfHarmCost: 2,
+        selfHarmEffectDesc: '手札にある「斬撃」(Lv1) 1枚を「斬撃一閃」(Lv2) に強化する。'
+    },
+    awakened: {
+        handSize: 3, bloodPact: 2, selfHarmCost: 2,
+        selfHarmEffectDesc: '手札にある「斬撃」(Lv1) 2枚を「斬撃一閃」(Lv2) に強化する。'
+    }
   },
   {
     id: 'regalia-hihiirokane',
@@ -209,11 +232,15 @@ export const REGALIA_LIST: RegaliaCard[] = [
     cost: 0,
     level: 0,
     description: '1920年代に観測。古の金属で作られた刃。',
-    handSize: 3,
-    bloodPact: 2,
-    selfHarmCost: 4,
-    selfHarmEffectDesc: '『斬撃一閃』(ATK 3) を1枚手札に加える。',
-    year: 1920
+    year: 1920,
+    base: {
+        handSize: 3, bloodPact: 2, selfHarmCost: 4,
+        selfHarmEffectDesc: '契告書から『斬撃一閃』を1枚手札に加える。'
+    },
+    awakened: {
+        handSize: 4, bloodPact: 2, selfHarmCost: 4,
+        selfHarmEffectDesc: '契告書から『絶技【斬閃】』を1枚手札に加える。'
+    }
   },
   {
     id: 'regalia-totsukamatsurugi',
@@ -223,11 +250,15 @@ export const REGALIA_LIST: RegaliaCard[] = [
     cost: 0,
     level: 0,
     description: '1950年代に観測。呪いをまき散らす剣。',
-    handSize: 4,
-    bloodPact: 2,
-    selfHarmCost: 2,
-    selfHarmEffectDesc: '相手の捨て札に『発狂』を1枚置く。',
-    year: 1950
+    year: 1950,
+    base: {
+        handSize: 4, bloodPact: 2, selfHarmCost: 2,
+        selfHarmEffectDesc: '相手の捨て札に『発狂』を1枚置く。'
+    },
+    awakened: {
+        handSize: 4, bloodPact: 2, selfHarmCost: 2,
+        selfHarmEffectDesc: '相手のデッキの1枚目(トップ)に『発狂』を置く。'
+    }
   },
   {
     id: 'regalia-niraikanai',
@@ -237,11 +268,15 @@ export const REGALIA_LIST: RegaliaCard[] = [
     cost: 0,
     level: 0,
     description: '2000年代に観測。理想郷への扉。',
-    handSize: 3,
-    bloodPact: 2,
-    selfHarmCost: 3,
-    selfHarmEffectDesc: '自分の山札の上から2枚をブラッドプールに送る。',
-    year: 2000
+    year: 2000,
+    base: {
+        handSize: 3, bloodPact: 2, selfHarmCost: 3,
+        selfHarmEffectDesc: '自分の山札の上から2枚をブラッドプールに送る。'
+    },
+    awakened: {
+        handSize: 3, bloodPact: 2, selfHarmCost: 3,
+        selfHarmEffectDesc: '契告書から段階1のアーツを2枚選び、血廻エリアに送る。'
+    }
   },
   {
     id: 'regalia-kutoneshirika',
@@ -251,11 +286,15 @@ export const REGALIA_LIST: RegaliaCard[] = [
     cost: 0,
     level: 0,
     description: '2020年代に観測。英雄の魂が宿る。',
-    handSize: 5,
-    bloodPact: 1,
-    selfHarmCost: 5,
-    selfHarmEffectDesc: '「赤血」を1枚、ブラッドプールに加える。',
-    year: 2020
+    year: 2020,
+    base: {
+        handSize: 5, bloodPact: 1, selfHarmCost: 5,
+        selfHarmEffectDesc: '契告書から「赤血」を1枚、ブラッドプールに加える。'
+    },
+    awakened: {
+        handSize: 5, bloodPact: 1, selfHarmCost: 3,
+        selfHarmEffectDesc: '契告書から「赤血」を3枚、ブラッドプールに加える。'
+    }
   },
   {
     id: 'regalia-apoitakara',
@@ -265,11 +304,15 @@ export const REGALIA_LIST: RegaliaCard[] = [
     cost: 0,
     level: 0,
     description: '2040年代に観測。アイヌの秘宝。',
-    handSize: 4,
-    bloodPact: 2,
-    selfHarmCost: 1,
-    selfHarmEffectDesc: 'デッキからカードを1枚引く。',
-    year: 2040
+    year: 2040,
+    base: {
+        handSize: 4, bloodPact: 2, selfHarmCost: 1,
+        selfHarmEffectDesc: 'デッキからカードを1枚引く。'
+    },
+    awakened: {
+        handSize: 4, bloodPact: 2, selfHarmCost: 2,
+        selfHarmEffectDesc: 'デッキの上から3枚見る。そのうち1枚を手札に加え、残りを捨て札にする。'
+    }
   },
   {
     id: 'regalia-usuganeyoroi',
@@ -279,11 +322,15 @@ export const REGALIA_LIST: RegaliaCard[] = [
     cost: 0,
     level: 0,
     description: '1940年代に観測。鉄壁の守りの中に刃を隠す。',
-    handSize: 4,
-    bloodPact: 2,
-    selfHarmCost: 3,
-    selfHarmEffectDesc: '「斬撃」を1枚手札に加える。',
-    year: 1940
+    year: 1940,
+    base: {
+        handSize: 4, bloodPact: 2, selfHarmCost: 3,
+        selfHarmEffectDesc: '契告書から「斬撃」を1枚手札に加える。'
+    },
+    awakened: {
+        handSize: 4, bloodPact: 2, selfHarmCost: 4,
+        selfHarmEffectDesc: '契告書から「斬撃」を2枚手札に加える。'
+    }
   },
   {
     id: 'regalia-obotsukagura',
@@ -293,11 +340,15 @@ export const REGALIA_LIST: RegaliaCard[] = [
     cost: 0,
     level: 0,
     description: '2010年代に観測。天と地をつなぐ神楽。',
-    handSize: 3,
-    bloodPact: 2,
-    selfHarmCost: 1,
-    selfHarmEffectDesc: '『オボツの欠片』を1枚手札に加える。',
-    year: 2010
+    year: 2010,
+    base: {
+        handSize: 3, bloodPact: 2, selfHarmCost: 1,
+        selfHarmEffectDesc: '契告書から「オボツの欠片」を1枚手札に加える。'
+    },
+    awakened: {
+        handSize: 3, bloodPact: 2, selfHarmCost: 3,
+        selfHarmEffectDesc: '契告書から「オボツの欠片」を1枚手札に加える。その後、手札2枚まで血廻へ送り、送った数だけ引く。'
+    }
   }
 ];
 
@@ -374,7 +425,6 @@ export const RECALL_SETS: RecallColorSet[] = [
         colorName: '無間の紫 (Purple)',
         cards: [
             // 共通: Cost 6, プレイした時相手デッキトップへ
-            // Base Atk 0
             {
                 name: '無間の紫', type: CardType.Recall, attack: -5, cost: 6, level: 0, // 固有で攻撃-5
                 description: '【共通】プレイ後、相手デッキの上へ。\n【固有】[攻撃]-5'
@@ -427,7 +477,6 @@ export const RECALL_SETS: RecallColorSet[] = [
         colorName: '天球の蒼 (Blue)',
         cards: [
             // 共通: Cost 5, バトルフェイズ終了時場に残る。ターン開始時効果発動。
-            // Base Atk 0
             { 
                 name: '天球の蒼', type: CardType.Recall, attack: 0, cost: 5, level: 0, 
                 description: '【共通】場に残る。ターン開始時に発動。\n【固有】手札のアーツ1枚を【追憶強化】。' 
@@ -480,7 +529,6 @@ export const RECALL_SETS: RecallColorSet[] = [
         colorName: '超克の桜 (Cherry)',
         cards: [
             // 共通: Cost 7, 【凱旋】(ダメージ時墓地の斬撃系を追憶強化)。
-            // Base Atk 0
             { 
                 name: '超克の桜', type: CardType.Recall, attack: 0, cost: 7, level: 0, 
                 description: '【共通】凱旋効果あり。場に出た時: 1ドロー＆手札のLv1アーツを【追憶強化】。' 
@@ -507,7 +555,6 @@ export const RECALL_SETS: RecallColorSet[] = [
         colorName: '機翼の藍 (Indigo)',
         cards: [
             // 共通: Cost 3, 場に置かれた時「ラムダ(Atk2)」を場に出す。
-            // Base Atk 0
             { 
                 name: '機翼の藍', type: CardType.Recall, attack: 0, cost: 3, level: 0, 
                 description: '【共通】ラムダを召喚。\n【固有】手札を任意枚数血廻へ送る。' 
@@ -531,19 +578,3 @@ export const RECALL_SETS: RecallColorSet[] = [
         ]
     }
 ];
-
-export const createRecallCard = (template: Omit<Card, 'id'>): Card => ({
-  ...template,
-  id: generateId('recall')
-});
-
-// --- 強化アーツ (Deprecated but kept for Regalia internal logic if needed, updated names) ---
-export const createUpgradedSlash = (level: number): Card => ({
-  id: generateId(`slash-${level}`),
-  name: level === 2 ? '斬撃一閃' : '絶技【斬閃】',
-  type: CardType.Slash,
-  attack: level === 2 ? 3 : 6,
-  cost: 0,
-  level: level,
-  description: level === 2 ? '[攻撃] +3' : '[攻撃] +6'
-});
