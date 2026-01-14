@@ -2,10 +2,21 @@ import React, { useReducer, useEffect, useState, useRef } from 'react';
 import { gameReducer } from './services/engine';
 import { createPlayer } from './services/gameLogic';
 import { GameState, Phase } from './types';
-import { REGALIA_LIST, BLOOD_RECALLS } from './constants/jinki';
-import { RECALL_SETS, createRecallCard } from './constants/recall';
+import { REGALIA_LIST, RECALL_SETS, createRecallCard, BLOOD_RECALLS, getRegaliaTheme } from './constants/index';
 import { PlayerArea } from './components/PlayerArea';
 import { Market } from './components/Market';
+import { CardSelectionModal, SimpleChoiceModal, HandSelectionModal, BlueSphereDeckControlModal } from './components/GameModals';
+import { EntranceScreen } from './components/EntranceScreen';
+
+// --- テーマカラー定義ヘルパー ---
+// (定数ファイルへ移動推奨だが、現状はここで維持)
+// ... (getRegaliaTheme function logic is imported from constants but used here if we want styling in selection screen)
+// Note: Imported 'getRegaliaTheme' from constants/index to keep App.tsx cleaner, make sure it's exported there. 
+// If not exported in constants, I will redefine it here or use the imported one.
+// The previous step showed it being in App.tsx. I will assume it's moved or I'll reuse the one I defined in App.tsx previously.
+// actually, let's keep the helper here if it wasn't moved, or remove if it was.
+// Based on previous file content, getRegaliaTheme was in constants/jinki.ts AND App.tsx. 
+// I will use the one from imports.
 
 // --- 初期セットアップ用ヘルパー ---
 const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string): GameState => {
@@ -53,105 +64,147 @@ const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string): Ga
   };
 };
 
+// 画面遷移の状態
+type AppView = 'entrance' | 'regalia_select' | 'blood_recall_select' | 'game';
+
 const App: React.FC = () => {
+  const [currentView, setCurrentView] = useState<AppView>('entrance');
   const [selectedRegalia, setSelectedRegalia] = useState<string | null>(null);
   const [selectedBloodRecall, setSelectedBloodRecall] = useState<string | null>(null);
 
+  // エントランス画面
+  if (currentView === 'entrance') {
+      return (
+          <EntranceScreen 
+            onStartSolo={() => setCurrentView('regalia_select')}
+            onStartVersus={() => { /* Future Impl */ }}
+          />
+      );
+  }
+
   // ステップ1: 神器選択
-  if (!selectedRegalia) {
+  if (currentView === 'regalia_select') {
     return (
       <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center text-white p-4 overflow-y-auto">
+        <button 
+            onClick={() => setCurrentView('entrance')}
+            className="absolute top-4 left-4 text-gray-500 hover:text-white flex items-center gap-2"
+        >
+            ← Back to Title
+        </button>
         <h1 className="text-4xl font-cinzel text-red-600 mb-8 mt-8">Blood Recall</h1>
         <h2 className="text-xl mb-4">Choose your Regalia (Jinki)</h2>
         <div className="flex gap-4 flex-wrap justify-center max-w-6xl pb-8">
-          {REGALIA_LIST.map(r => (
-            <div 
-              key={r.id} 
-              className="bg-gray-800 p-3 rounded border-2 border-red-900 hover:border-red-500 cursor-pointer transition-all hover:scale-105 w-full sm:w-64 flex flex-col"
-              onClick={() => setSelectedRegalia(r.id)}
-            >
-              <h3 className="text-xl font-bold text-red-400 mb-1">{r.name}</h3>
-              <p className="text-xs mb-2 text-gray-500 italic">{r.description.split('。')[0]}</p>
-              
-              <div className="bg-black/30 p-2 rounded mb-2 flex-1 flex flex-col gap-2">
-                 {/* Normal Stats */}
-                 <div>
-                     <div className="text-[10px] text-gray-400 font-bold border-b border-gray-700 mb-1">Normal</div>
-                     <div className="grid grid-cols-3 gap-1 text-[10px] text-gray-400 text-center">
-                        <div className="bg-gray-900/50 p-1 rounded">
-                            <div className="text-white font-bold">{r.base.handSize}</div>
-                            <div>Hand</div>
+          {REGALIA_LIST.map(r => {
+            const theme = getRegaliaTheme(r.id);
+            return (
+                <div 
+                    key={r.id} 
+                    className={`
+                        p-3 rounded border-2 cursor-pointer transition-all hover:scale-105 w-full sm:w-64 flex flex-col shadow-lg
+                        ${theme.bg} ${theme.border} ${theme.hover}
+                    `}
+                    onClick={() => {
+                        setSelectedRegalia(r.id);
+                        setCurrentView('blood_recall_select');
+                    }}
+                >
+                    <h3 className={`text-xl font-bold mb-1 ${theme.title}`}>{r.name}</h3>
+                    <p className={`text-xs mb-2 italic ${theme.subText}`}>{r.description.split('。')[0]}</p>
+                    
+                    <div className={`${theme.statsBg} p-2 rounded mb-2 flex-1 flex flex-col gap-2`}>
+                        {/* Normal Stats */}
+                        <div>
+                            <div className={`text-[10px] font-bold border-b border-white/10 mb-1 ${theme.subText}`}>Normal</div>
+                            <div className="grid grid-cols-3 gap-1 text-[10px] text-gray-400 text-center">
+                                <div className="bg-black/30 p-1 rounded">
+                                    <div className="text-white font-bold">{r.base.handSize}</div>
+                                    <div>Hand</div>
+                                </div>
+                                <div className="bg-black/30 p-1 rounded">
+                                    <div className="text-red-400 font-bold">{r.base.selfHarmCost}</div>
+                                    <div>Dmg</div>
+                                </div>
+                                <div className="bg-black/30 p-1 rounded">
+                                    <div className="text-blue-400 font-bold">{r.base.bloodPact}</div>
+                                    <div>Pact</div>
+                                </div>
+                            </div>
                         </div>
-                        <div className="bg-gray-900/50 p-1 rounded">
-                            <div className="text-red-400 font-bold">{r.base.selfHarmCost}</div>
-                            <div>Dmg</div>
-                        </div>
-                        <div className="bg-gray-900/50 p-1 rounded">
-                            <div className="text-blue-400 font-bold">{r.base.bloodPact}</div>
-                            <div>Pact</div>
-                        </div>
-                     </div>
-                 </div>
 
-                 {/* Awakened Stats */}
-                 <div>
-                     <div className="text-[10px] text-red-400 font-bold border-b border-red-900/30 mb-1">Awakened (Life≤10)</div>
-                     <div className="grid grid-cols-3 gap-1 text-[10px] text-gray-400 text-center">
-                        <div className="bg-gray-900/50 p-1 rounded border border-red-900/20">
-                            <div className="text-white font-bold">{r.awakened.handSize}</div>
-                            <div>Hand</div>
+                        {/* Awakened Stats */}
+                        <div>
+                            <div className={`text-[10px] font-bold border-b ${theme.awakenedBorder} mb-1 ${theme.accentText}`}>Awakened (Life≤10)</div>
+                            <div className="grid grid-cols-3 gap-1 text-[10px] text-gray-400 text-center">
+                                <div className={`bg-black/30 p-1 rounded border ${theme.awakenedBorder}`}>
+                                    <div className="text-white font-bold">{r.awakened.handSize}</div>
+                                    <div>Hand</div>
+                                </div>
+                                <div className={`bg-black/30 p-1 rounded border ${theme.awakenedBorder}`}>
+                                    <div className="text-red-400 font-bold">{r.awakened.selfHarmCost}</div>
+                                    <div>Dmg</div>
+                                </div>
+                                <div className={`bg-black/30 p-1 rounded border ${theme.awakenedBorder}`}>
+                                    <div className="text-blue-400 font-bold">{r.awakened.bloodPact}</div>
+                                    <div>Pact</div>
+                                </div>
+                            </div>
                         </div>
-                        <div className="bg-gray-900/50 p-1 rounded border border-red-900/20">
-                            <div className="text-red-400 font-bold">{r.awakened.selfHarmCost}</div>
-                            <div>Dmg</div>
-                        </div>
-                        <div className="bg-gray-900/50 p-1 rounded border border-red-900/20">
-                            <div className="text-blue-400 font-bold">{r.awakened.bloodPact}</div>
-                            <div>Pact</div>
-                        </div>
-                     </div>
-                 </div>
-              </div>
+                    </div>
 
-              <div className="text-xs space-y-1 text-gray-400 bg-red-950/20 p-2 rounded border border-red-900/20">
-                 <p className="font-bold text-red-300">Self Harm Effect:</p>
-                 <p className="leading-tight">{r.base.selfHarmEffectDesc}</p>
-              </div>
-            </div>
-          ))}
+                    <div className={`text-xs space-y-2 p-2 rounded border flex-1 ${theme.descriptionBg} ${theme.descriptionBorder} ${theme.subText}`}>
+                        <div>
+                            <p className="font-bold opacity-70 text-[10px] uppercase mb-0.5">Normal Effect:</p>
+                            <p className="leading-tight">{r.base.selfHarmEffectDesc}</p>
+                        </div>
+                        <div className={`border-t pt-1 ${theme.descriptionBorder}`}>
+                            <p className={`font-bold text-[10px] uppercase mb-0.5 ${theme.accentText}`}>Awakened Effect:</p>
+                            <p className="leading-tight opacity-90">{r.awakened.selfHarmEffectDesc}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+          })}
         </div>
       </div>
     );
   }
 
   // ステップ2: ブラッドリコール選択
-  if (!selectedBloodRecall) {
+  if (currentView === 'blood_recall_select' && selectedRegalia) {
       const availableRecalls = BLOOD_RECALLS.filter(br => br.regaliaId === selectedRegalia);
       const regaliaName = REGALIA_LIST.find(r => r.id === selectedRegalia)?.name;
+      const theme = getRegaliaTheme(selectedRegalia);
 
       return (
         <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center text-white p-4">
-            <h1 className="text-3xl font-cinzel text-red-600 mb-2">Select Blood Recall</h1>
+            <h1 className={`text-3xl font-cinzel mb-2 ${theme.title}`}>Select Blood Recall</h1>
             <h2 className="text-lg text-gray-400 mb-8">for {regaliaName}</h2>
             <div className="flex gap-6 flex-wrap justify-center">
                 {availableRecalls.map(br => (
                     <div 
                         key={br.id}
-                        className="bg-gray-800 p-6 rounded border-2 border-red-700 hover:border-red-400 hover:bg-gray-700 cursor-pointer transition-all w-80 flex flex-col items-center text-center group"
-                        onClick={() => setSelectedBloodRecall(br.id)}
+                        className={`
+                            p-6 rounded border-2 cursor-pointer transition-all w-80 flex flex-col items-center text-center group
+                            ${theme.bg} ${theme.border} ${theme.hover}
+                        `}
+                        onClick={() => {
+                            setSelectedBloodRecall(br.id);
+                            setCurrentView('game');
+                        }}
                     >
-                        <h3 className="text-2xl font-bold text-red-200 mb-2">{br.name}</h3>
-                        <div className="w-full h-px bg-red-900 my-4"></div>
-                        <div className="text-sm text-gray-300 mb-4 flex-1">{br.description}</div>
+                        <h3 className={`text-2xl font-bold mb-2 ${theme.title}`}>{br.name}</h3>
+                        <div className={`w-full h-px my-4 ${theme.descriptionBorder.replace('border-', 'bg-')}`}></div>
+                        <div className={`text-sm mb-4 flex-1 ${theme.subText}`}>{br.description}</div>
                         <div className="flex gap-4 text-xs font-bold uppercase tracking-wider">
-                            <div className="bg-black/40 px-3 py-1 rounded text-red-400 border border-red-900">
+                            <div className="bg-black/40 px-3 py-1 rounded text-red-400 border border-red-900/50">
                                 Cost: {br.cost}
                             </div>
-                            <div className="bg-black/40 px-3 py-1 rounded text-blue-400 border border-blue-900">
+                            <div className="bg-black/40 px-3 py-1 rounded text-blue-400 border border-blue-900/50">
                                 {br.timing}
                             </div>
                         </div>
-                        <div className="mt-6 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 font-cinzel font-bold">
+                        <div className={`mt-6 opacity-0 group-hover:opacity-100 transition-opacity font-cinzel font-bold ${theme.title}`}>
                             SELECT
                         </div>
                     </div>
@@ -159,7 +212,10 @@ const App: React.FC = () => {
             </div>
             <button 
                 className="mt-12 text-gray-500 hover:text-white underline"
-                onClick={() => setSelectedRegalia(null)}
+                onClick={() => {
+                    setSelectedRegalia(null);
+                    setCurrentView('regalia_select');
+                }}
             >
                 Back to Regalia Selection
             </button>
@@ -167,7 +223,12 @@ const App: React.FC = () => {
       );
   }
 
-  return <GameView key={`${selectedRegalia}-${selectedBloodRecall}`} initialState={setupGame(selectedRegalia, selectedBloodRecall)} />;
+  // ゲーム画面
+  if (currentView === 'game' && selectedRegalia && selectedBloodRecall) {
+      return <GameView key={`${selectedRegalia}-${selectedBloodRecall}`} initialState={setupGame(selectedRegalia, selectedBloodRecall)} />;
+  }
+
+  return null;
 };
 
 // ゲームコンポーネント
@@ -220,6 +281,11 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
   const handleActivateBloodRecall = () => {
       if (state.turnPlayerId !== 'p1' || state.phase !== Phase.Main) return;
       dispatch({ type: 'ACTIVATE_BLOOD_RECALL', playerId: 'p1' });
+  };
+
+  // 選択ポップアップの解決
+  const handleResolvePending = (payload: any) => {
+      dispatch({ type: 'RESOLVE_PENDING_ACTION', payload });
   };
 
   const isPlayerTurn = state.turnPlayerId === 'p1' && state.phase === Phase.Main;
@@ -318,6 +384,59 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
             playerPoolCount={state.players.player.bloodPool.length}
          />
       </div>
+
+      {/* 選択ポップアップモーダル */}
+      {state.pendingResolution && (
+          <>
+            {state.pendingResolution.type === 'APOITAKARA_SELECTION' && (
+                <CardSelectionModal 
+                    title="Apoitakara's Vision"
+                    description="Choose one card to add to your hand. The rest will be discarded."
+                    cards={state.pendingResolution.cards}
+                    onResolve={handleResolvePending}
+                />
+            )}
+            {state.pendingResolution.type === 'OBOTSU_BASE_CHOICE' && (
+                <SimpleChoiceModal 
+                    title="Obotsukagura's Choice"
+                    description="Select which blessing to receive."
+                    options={[
+                        { label: 'Obotsu Fragment', value: 'fragment' },
+                        { label: '2 Blood Cards', value: 'blood' }
+                    ]}
+                    onResolve={handleResolvePending}
+                />
+            )}
+            {state.pendingResolution.type === 'OBOTSU_AWAKENED_HAND_SELECT' && (
+                <HandSelectionModal 
+                    title="Sacrifice for Knowledge"
+                    description="Select up to 2 cards to send to Blood Circuit. You will draw an equal amount."
+                    hand={state.players.player.hand}
+                    onResolve={handleResolvePending}
+                />
+            )}
+            {state.pendingResolution.type === 'BLUE_SPHERE_UPGRADE' && (
+                <CardSelectionModal 
+                    title="Blue Sphere: Remembrance"
+                    description="Choose an Art card in your hand to upgrade (Remembrance Enhancement)."
+                    cards={state.players.player.hand}
+                    onResolve={(payload) => {
+                         // selectedIndexからcardIdへ変換して渡す
+                         const card = state.players.player.hand[payload.selectedIndex];
+                         handleResolvePending({ cardId: card.id });
+                    }}
+                />
+            )}
+            {state.pendingResolution.type === 'BLUE_SPHERE_DECK_CONTROL' && (
+                <BlueSphereDeckControlModal 
+                    title="Blue Sphere: Deck Control"
+                    description="Look at top 2 cards. Send any to Blood Circuit, return rest to Deck top."
+                    cards={state.pendingResolution.cards}
+                    onResolve={handleResolvePending}
+                />
+            )}
+          </>
+      )}
 
       {/* ゲームオーバーモーダル */}
       {state.phase === Phase.GameOver && (

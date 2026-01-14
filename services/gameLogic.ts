@@ -1,17 +1,10 @@
 import { PlayerState, Card, CardType, RegaliaCard, RegaliaStats } from '../types';
-
-import {
-    createStarterSlash, createStarterBlood, 
-    createSlashFlash, createMasterySlashFlash, createRedScarletBlood, 
-    createTorrentRedStarBlood, createLambda, createObotsuFragment
-  } from '../constants/arts';
-  import { BLOOD_RECALLS } from '../constants/jinki';
+import { 
+  INITIAL_LIFE, STARTER_DECK_SLASH_COUNT, STARTER_DECK_BLOOD_COUNT, 
+  createStarterSlash, createStarterBlood, BLOOD_RECALLS, 
+  createSlashFlash, createMasterySlashFlash, createRedScarletBlood, createTorrentRedStarBlood, createLambda, createObotsuFragment
+} from '../constants/index';
 import { shuffle } from '../utils/common';
-
-
-export const INITIAL_LIFE = 20; // 初期ライフ
-export const STARTER_DECK_SLASH_COUNT = 4; // 初期デッキの斬撃枚数
-export const STARTER_DECK_BLOOD_COUNT = 6; // 初期デッキの鮮血枚数
 
 /**
  * プレイヤーの現在の神器ステータス（覚醒状態を考慮）を取得する
@@ -227,26 +220,34 @@ export const checkAwakening = (player: PlayerState, log: string[]): void => {
 /**
  * ターン開始時の効果をまとめて解決する関数
  * 天球の蒼、ラムダ、オボツの欠片などの効果を処理
+ * @returns 選択が必要な処理がある場合、そのカードのリストを返す
  */
-export const resolveStartOfTurnEffects = (player: PlayerState, log: string[]): void => {
+export const resolveStartOfTurnEffects = (player: PlayerState, log: string[]): Card[] => {
+    const pendingCards: Card[] = [];
+
     // 1. 天球の蒼の効果
     const blueSpheres = player.field.filter(c => c.name === '天球の蒼');
     for (const card of blueSpheres) {
-        if (card.description.includes('手札にあるアーツカードを1枚選ぶ') || card.description.includes('【追憶強化】する')) {
-            executeRemembranceEnhancement(player, log);
+        // 改行を削除して判定を堅牢にする
+        const desc = card.description.replace(/\n/g, '');
+
+        if (desc.includes('手札にあるアーツカードを1枚選ぶ')) {
+            // 選択が必要なのでキューに追加
+            pendingCards.push(card);
         }
-        else if (card.description.includes('デッキの上から2枚見る')) {
-            log.push(`[天球の蒼] ${player.name}はデッキトップを確認し操作した。`);
+        else if (desc.includes('デッキの上から2枚見る')) {
+             // 選択が必要なのでキューに追加
+             pendingCards.push(card);
         }
-        else if (card.description.includes('赤緋血を1枚手札に加える')) {
+        else if (desc.includes('赤緋血を1枚手札に加える')) {
             player.hand.push(createRedScarletBlood());
             log.push(`[天球の蒼] ${player.name}は赤緋血を手に入れた。`);
         }
-        else if (card.description.includes('「ブラッドカード」を3枚')) {
+        else if (desc.includes('ブラッドカード」を3枚')) {
             for(let i=0; i<3; i++) player.bloodPool.push(createStarterBlood());
             log.push(`[天球の蒼] ${player.name}のプールにブラッドカードが3枚追加された。`);
         }
-        else if (card.description.includes('斬撃一閃') && card.description.includes('ブラッドプール')) {
+        else if (desc.includes('斬撃一閃') && desc.includes('ブラッドプール')) {
             player.hand.push(createSlashFlash());
             player.bloodPool.push(createStarterBlood());
             log.push(`[天球の蒼] ${player.name}は斬撃一閃とブラッドを得た。`);
@@ -269,6 +270,8 @@ export const resolveStartOfTurnEffects = (player: PlayerState, log: string[]): v
         }
         log.push(`[オボツの欠片] ${player.name}はブラッド(+${fragmentCount})を得た。`);
     }
+
+    return pendingCards;
 };
 
 /**

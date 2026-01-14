@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { PlayerState, RegaliaCard } from '../types';
 import { Card } from './Card';
 import { Zone } from './Zone';
-import { CRAFT_RECIPES } from '../constants/arts';
-import { RegaliaModal, CraftModal, CardListModal } from './GameModals';
+import { CRAFT_RECIPES } from '../constants/index';
+import { RegaliaModal, CraftModal, CardListModal, DeckListModal } from './GameModals';
 
 interface PlayerAreaProps {
   player: PlayerState;
@@ -28,6 +28,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
   const [showCraftModal, setShowCraftModal] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [showCircuitModal, setShowCircuitModal] = useState(false);
+  const [showDeckModal, setShowDeckModal] = useState(false);
 
   const handleRegaliaClick = () => {
       if (player.regalia) {
@@ -188,19 +189,26 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                   )}
               </div>
           </Zone>
-          <Zone title="Deck" className="h-1/2 flex items-center justify-center bg-black/40 relative group">
-               {player.deck.length > 0 ? (
-                   <div className="w-16 h-24 bg-red-900 rounded border-2 border-red-700 shadow-md flex items-center justify-center">
-                       <span className="text-3xl font-cinzel font-bold text-red-200 drop-shadow-md">{player.deck.length}</span>
+          <Zone title="Deck (Click)" className="h-1/2 flex items-center justify-center bg-black/40 relative group cursor-pointer hover:bg-black/60 transition-colors">
+               <div onClick={() => !isOpponent && setShowDeckModal(true)} className="w-full h-full flex items-center justify-center">
+                   {player.deck.length > 0 ? (
+                       <div className="w-16 h-24 bg-red-900 rounded border-2 border-red-700 shadow-md flex items-center justify-center">
+                           <span className="text-3xl font-cinzel font-bold text-red-200 drop-shadow-md">{player.deck.length}</span>
+                       </div>
+                   ) : (
+                       <div className="text-xs text-gray-600">0</div>
+                   )}
+                   {/* Total枚数表示 */}
+                   <div className="absolute -bottom-6 w-full text-center pointer-events-none">
+                       <span className="text-xs text-gray-400 font-bold bg-black/80 px-2 py-0.5 rounded border border-gray-700">
+                           Total: {totalCards}
+                       </span>
                    </div>
-               ) : (
-                   <div className="text-xs text-gray-600">0</div>
-               )}
-               {/* Total枚数表示 */}
-               <div className="absolute -bottom-6 w-full text-center">
-                   <span className="text-xs text-gray-400 font-bold bg-black/80 px-2 py-0.5 rounded border border-gray-700">
-                       Total: {totalCards}
-                   </span>
+                   {!isOpponent && (
+                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="bg-black/80 text-[10px] px-2 py-1 rounded border border-gray-600">View</span>
+                       </div>
+                   )}
                </div>
           </Zone>
       </div>
@@ -340,6 +348,14 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                 cards={player.bloodCircuit}
                 colorTheme="purple"
                 onClose={() => setShowCircuitModal(false)}
+            />
+        )}
+
+        {showDeckModal && !isOpponent && (
+            <DeckListModal 
+                title="Remaining Deck"
+                cards={player.deck}
+                onClose={() => setShowDeckModal(false)}
             />
         )}
     </div>

@@ -62,9 +62,9 @@ export interface BloodRecall {
   name: string;
   regaliaId: string;      // 紐づく神器ID
   cost: number;           // 血廻りコスト（発動に必要な血廻エリアの枚数）
-  timing: 'Main' | 'BattleStart' | 'Cleanup' | 'OnDamage'; // 発動可能タイミング
+  timing: 'Main' | 'BattleStart' | 'Cleanup' | 'OnDamage' | 'BattleEnd'; // 発動可能タイミング
   description: string;    // 効果説明
-  effectType: string;     // 【task】内部ロジック分岐用の識別子（将来的にEnum化を検討）
+  effectType: string;     // 内部ロジック分岐用の識別子
 }
 
 /**
@@ -91,13 +91,25 @@ export interface PlayerState {
   
   // 継続効果・バフの状態管理
   activeBuffs: {
-    shiraganeConvert?: boolean;  // シラガネ: 自傷ダメージをプール追加に置換
+    shiraganeConvert?: boolean;  // シラガネ: 自傷ダメージをプール追加に置換 (不要になったが互換性のため残すか検討)
+    hihiirokaneConvert?: boolean; // ヒヒイロカネ: 自傷ダメージをゲーム外からのプール追加に置換
     damageReduction?: number;    // ニライカナイ: ダメージ軽減量
     usuganeBurn?: boolean;       // ウスガネ: クリーンナップ時ダメージ発生
     kutonePactBonus?: number;    // クトネシリカ: アクション回数ボーナス
     battleStartAtk?: number;     // 戦闘開始時ATK補正
+    permanentAtk?: number;       // アポイタカラ: 永続ATK
   };
 }
+
+/**
+ * 解決待ちのアクション状態（ポップアップ表示用）
+ */
+export type PendingResolution = 
+  | { type: 'APOITAKARA_SELECTION'; cards: Card[] }
+  | { type: 'OBOTSU_BASE_CHOICE' }
+  | { type: 'OBOTSU_AWAKENED_HAND_SELECT' }
+  | { type: 'BLUE_SPHERE_UPGRADE' }
+  | { type: 'BLUE_SPHERE_DECK_CONTROL'; cards: Card[] };
 
 /**
  * ゲーム全体の状態管理
@@ -112,10 +124,15 @@ export interface GameState {
   };
   market: {
     recallPiles: Card[][];     // マーケットの山札群（5つの山札）
-    artsDeckSlash: Card[][];   // 【task】強化用斬撃カード（現状未使用、将来拡張用）
-    artsDeckBlood: Card[][];   // 【task】強化用鮮血カード（現状未使用、将来拡張用）
+    artsDeckSlash: Card[][];   // 強化用斬撃カード
+    artsDeckBlood: Card[][];   // 強化用鮮血カード
   };
   log: string[];          // ゲームログ
+  
+  // ユーザーの選択待ち状態
+  pendingResolution?: PendingResolution;
+  // ターン開始時に順次解決すべき効果を持つカードのキュー
+  pendingTurnStartEffects?: Card[];
 }
 
 /**
@@ -131,4 +148,6 @@ export type ActionType =
   | { type: 'PASS_TURN'; playerId: string }                          // パス宣言
   | { type: 'RESOLVE_BATTLE' }                                       // 戦闘解決処理
   | { type: 'CLEANUP' }                                              // クリーンアップ処理
-  | { type: 'CPU_ACTION' };                                          // AI思考ルーチン実行
+  | { type: 'CPU_ACTION' }                                           // AI思考ルーチン実行
+  | { type: 'RESOLVE_PENDING_ACTION'; payload: any }                 // 選択ポップアップの結果解決
+  | { type: 'PROCESS_NEXT_TURN_START_EFFECT' };                      // 次のターン開始時効果を処理

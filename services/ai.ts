@@ -1,5 +1,6 @@
 import { GameState, Card, ActionType, CardType } from '../types';
-import { CRAFT_RECIPES } from '../constants/arts';
+import { CRAFT_RECIPES } from '../constants/index';
+import { getRegaliaStats } from './gameLogic';
 
 /**
  * CPUの行動を決定する
@@ -11,6 +12,7 @@ export const decideCpuAction = (state: GameState): ActionType => {
         
     // 1. 必殺技（ブラッドリコール）の発動チェック
     if (cpu.bloodRecall && cpu.bloodCircuit.length >= cpu.bloodRecall.cost) {
+        // 条件を満たしていれば発動
         return { type: 'ACTIVATE_BLOOD_RECALL', playerId: cpu.id };
     }
 
@@ -46,8 +48,10 @@ export const decideCpuAction = (state: GameState): ActionType => {
         }
     }
 
-    // 3. 自傷アクション（ライフに余裕がある場合）
-    if (cpu.regalia && !cpu.regalia.isTapped && cpu.life > 5) {
+    // 3. 自傷アクション（ライフに余裕があり、かつコストが払える場合）
+    // バグ修正: ライフ数値だけでなく、実際にコスト分のライフカードがあるかチェックする
+    const stats = getRegaliaStats(cpu);
+    if (cpu.regalia && !cpu.regalia.isTapped && cpu.life > 5 && stats && cpu.lifeCards.length >= stats.selfHarmCost) {
             return { type: 'SELF_HARM', playerId: cpu.id };
     }
 

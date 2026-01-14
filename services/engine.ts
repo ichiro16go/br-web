@@ -4,8 +4,9 @@ import {
 import { 
   createStarterBlood, createUpgradedSlash, createSlashFlash, 
   createMasterySlashFlash, createMadness, createObotsuFragment, 
-  CRAFT_RECIPES, createStarterSlash
-} from '../constants/arts';
+  CRAFT_RECIPES, createStarterSlash, createRedScarletBlood,
+  createTorrentRedStarBlood
+} from '../constants/index';
 import { 
   drawCard, checkAwakening, resolveFieldEntryEffects, getRegaliaStats, executeRemembranceEnhancement, 
   recalculateAttackTotal, resolveStartOfTurnEffects, performCleanup
@@ -40,43 +41,40 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         if (player.bloodCircuit.length < recall.cost) return state;
 
         // コスト支払い
-        let paidCards: Card[] = [];
-        if (recall.effectType === 'shiragane_revive') {
-             const slashes = player.bloodCircuit.filter(c => c.type === CardType.Slash);
-             const others = player.bloodCircuit.filter(c => c.type !== CardType.Slash);
-             
-             const cost = recall.cost;
-             const fromSlashes = slashes.slice(0, cost);
-             const remainingCost = cost - fromSlashes.length;
-             const fromOthers = others.slice(0, remainingCost);
-             
-             paidCards = [...fromSlashes, ...fromOthers];
-             const paidIds = new Set(paidCards.map(c => c.id));
-             player.bloodCircuit = player.bloodCircuit.filter(c => !paidIds.has(c.id));
-        } else {
-             paidCards = player.bloodCircuit.splice(0, recall.cost);
-        }
-
+        let paidCards: Card[] = player.bloodCircuit.splice(0, recall.cost);
+        
         cloneState.log.push(`${player.name} は必殺技「${recall.name}」を発動！ (血廻消費: ${recall.cost})`);
 
         // 効果適用
         switch (recall.effectType) {
-            case 'shiragane_convert':
-                player.activeBuffs.shiraganeConvert = true;
-                cloneState.log.push(`[継続] シラガネの効果により自傷ダメージがプール追加に変換されます。`);
+            case 'shiragane_mill_circuit':
+                const milled = player.deck.splice(0, 4);
+                player.bloodCircuit.push(...milled);
+                cloneState.log.push(`デッキトップ4枚を血廻へ送った。`);
                 break;
-            case 'shiragane_revive':
-                const revived = paidCards.filter(c => c.type === CardType.Slash);
-                player.field.push(...revived);
+            case 'shiragane_deploy_slash':
+                const slashInCircuit = player.bloodCircuit.filter(c => c.type === CardType.Slash);
+                player.field.push(...slashInCircuit);
+                player.bloodCircuit = player.bloodCircuit.filter(c => c.type !== CardType.Slash);
                 recalculateAttackTotal(player);
-                cloneState.log.push(`血廻コストから斬撃カード${revived.length}枚が場に現れた！`);
+                cloneState.log.push(`血廻にあった斬撃アーツ${slashInCircuit.length}枚を全て場に出した！`);
                 break;
-            case 'hihi_madness':
+            case 'hihi_convert_blood':
+                player.activeBuffs.hihiirokaneConvert = true;
+                cloneState.log.push(`[継続] ヒヒイロカネの効果：自傷ダメージの代わりにゲーム外からブラッドを得る。`);
+                break;
+            case 'hihi_deploy_slash':
+                const usedSlashes = paidCards.filter(c => c.type === CardType.Slash);
+                player.field.push(...usedSlashes);
+                recalculateAttackTotal(player);
+                cloneState.log.push(`コストとして払った斬撃アーツ${usedSlashes.length}枚を場に出した！`);
+                break;
+            case 'totsuka_madness_deck':
                 opponent.deck.push(createMadness());
                 opponent.deck.push(createMadness());
-                cloneState.log.push(`相手のデッキトップに発狂を2枚送り込んだ。`);
+                cloneState.log.push(`ゲーム外から「発狂」2枚を相手デッキトップへ送った。`);
                 break;
-            case 'hihi_destroy':
+            case 'totsuka_destroy_field':
                 if (opponent.field.length > 0) {
                     const removed = opponent.field.pop();
                     if (removed) {
@@ -86,70 +84,69 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
                     }
                 }
                 break;
-            case 'totsuka_mill':
-                const milled = player.deck.splice(0, 4);
-                player.bloodCircuit.push(...milled);
-                cloneState.log.push(`デッキから4枚を血廻へ送った。`);
-                break;
-            case 'totsuka_atk':
-                player.attackTotal += 10;
-                cloneState.log.push(`[攻撃]+10`);
-                break;
-            case 'nirai_shield':
+            case 'nirai_reduce_dmg':
                 player.activeBuffs.damageReduction = (player.activeBuffs.damageReduction || 0) + 8;
-                cloneState.log.push(`次のダメージを-8軽減する盾を得た。`);
+                cloneState.log.push(`次のダメージを-8軽減する。`);
                 break;
             case 'nirai_field_atk':
                 const fieldCount = player.field.length;
                 player.attackTotal += fieldCount;
-                cloneState.log.push(`[攻撃]+${fieldCount} (場のカード数)`);
+                cloneState.log.push(`[攻撃]+${fieldCount} (場のカード数分)。`);
                 break;
-            case 'kutone_pact':
+            case 'kutone_add_act':
                 player.activeBuffs.kutonePactBonus = (player.activeBuffs.kutonePactBonus || 0) + 1;
                 player.remainingActions += 1;
-                cloneState.log.push(`[継続] 血継(Act)が+1された。`);
+                cloneState.log.push(`[継続] 血継(Act)+1。`);
                 break;
-            case 'kutone_atk':
-                player.attackTotal += 10;
-                cloneState.log.push(`[攻撃]+10`);
+            case 'kutone_atk_6':
+                player.attackTotal += 6;
+                cloneState.log.push(`[攻撃]+6。`);
                 break;
-            case 'apoi_draw':
+            case 'apoi_draw_2':
                 const drawn = drawCard(player, 2);
                 player.deck = drawn.deck;
                 player.hand = drawn.hand;
                 player.discard = drawn.discard;
                 cloneState.log.push(`2枚引いた。`);
                 break;
-            case 'apoi_atk':
+            case 'apoi_perm_atk':
+                player.activeBuffs.permanentAtk = (player.activeBuffs.permanentAtk || 0) + 8;
                 player.attackTotal += 8;
-                cloneState.log.push(`[攻撃]+8`);
+                cloneState.log.push(`[攻撃]+8 (永続)。`);
                 break;
-            case 'usugane_burn':
+            case 'usugane_persistent_dmg':
                 player.activeBuffs.usuganeBurn = true;
-                cloneState.log.push(`[継続] クリーンナップフェイズに相手にダメージを与える呪いをかけた。`);
+                cloneState.log.push(`[継続] バトルフェイズ終了時に相手に2ダメージ。`);
                 break;
-            case 'usugane_last_stand':
-                const lifeToSend = player.lifeCards.splice(0, player.lifeCards.length - 1);
-                player.life = 1;
-                player.bloodCircuit.push(...lifeToSend);
-                const boost = lifeToSend.length;
-                player.attackTotal += boost;
-                cloneState.log.push(`ライフを1にし、[攻撃]+${boost}を得た！`);
+            case 'usugane_life_to_atk':
+                if (player.life > 1) {
+                    const lifeToSendCount = player.life - 1;
+                    const removedLifeCards = player.lifeCards.splice(0, lifeToSendCount);
+                    player.life = 1;
+                    player.attackTotal += lifeToSendCount;
+                    cloneState.log.push(`ライフを1にし、減らした分(${lifeToSendCount})だけ攻撃力を得た！`);
+                } else {
+                    cloneState.log.push(`ライフが既に1のため効果なし。`);
+                }
                 break;
-            case 'obotsu_awaken':
-                player.isRegaliaAwakened = true;
-                const obotsuDrawn = drawCard(player, 1);
-                player.deck = obotsuDrawn.deck;
-                player.hand = obotsuDrawn.hand;
-                player.discard = obotsuDrawn.discard;
-                cloneState.log.push(`即座に覚醒し、1枚引いた。`);
+            case 'obotsu_force_awaken':
+                if (!player.isRegaliaAwakened) {
+                    player.isRegaliaAwakened = true;
+                    cloneState.log.push(`人器を強制覚醒させた！`);
+                } else {
+                    const obotsuDrawn = drawCard(player, 1);
+                    player.deck = obotsuDrawn.deck;
+                    player.hand = obotsuDrawn.hand;
+                    player.discard = obotsuDrawn.discard;
+                    cloneState.log.push(`既に覚醒しているため、1枚引いた。`);
+                }
                 break;
-            case 'obotsu_fragment_atk':
+            case 'obotsu_fragment_burst':
                 const fragmentCount = player.hand.filter(c => c.name === 'オボツの欠片').length 
                                     + player.field.filter(c => c.name === 'オボツの欠片').length;
                 const atkBoost = fragmentCount * 2;
                 player.attackTotal += atkBoost;
-                cloneState.log.push(`[攻撃]+${atkBoost} (欠片x2)`);
+                cloneState.log.push(`[攻撃]+${atkBoost} (オボツの欠片x2)。`);
                 break;
         }
         return cloneState;
@@ -159,6 +156,7 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
     // カードプレイ
     // ---------------------------------------------------------
     case 'PLAY_CARD': {
+      // (省略なし、既存ロジックを維持)
       const { playerId, cardId } = action;
       const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
       const player = cloneState.players[playerKey];
@@ -172,15 +170,15 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
       player.hand.splice(cardIndex, 1);
       player.field.push(card);
       
-      // 攻撃力計算 (recalculateAttackTotalを使うことで整合性を保つ)
       recalculateAttackTotal(player);
+      if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
       
       cloneState.log.push(`${player.name} は ${card.name} をプレイ (ATK: ${card.attack}).`);
 
       resolveFieldEntryEffects(player, card, cloneState.log);
       
-      // ラムダ等が召喚された可能性があるため再計算
       recalculateAttackTotal(player);
+      if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
 
       if (['赤血', '赤緋血', '奔流【緋星血】', '桜流し'].includes(card.name)) {
           let amount = 1;
@@ -256,27 +254,27 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         const damage = stats.selfHarmCost;
         if (player.lifeCards.length < damage) return state;
 
-        if (player.activeBuffs.shiraganeConvert) {
-             for(let i=0; i<damage; i++) player.bloodPool.push(createStarterBlood());
-             cloneState.log.push(`${player.name}はシラガネの効果で自傷ダメージを無効化し、血を得た！`);
+        if (player.activeBuffs.hihiirokaneConvert) {
+            for(let i=0; i<damage; i++) player.bloodPool.push(createStarterBlood());
+             cloneState.log.push(`${player.name}はヒヒイロカネの効果で自傷の代わりにブラッドを得た！`);
         } else {
             const lostLife = player.lifeCards.splice(0, damage);
             player.bloodPool.push(...lostLife);
             player.life -= damage;
+            cloneState.log.push(`${player.name}はライフを${damage}支払い、神器を起動した。`);
         }
 
         player.regalia.isTapped = true;
         const isAwakened = player.isRegaliaAwakened;
 
-        // 神器効果分岐
         switch (player.regalia.id) {
             case 'regalia-shiragane':
-                executeRemembranceEnhancement(player, cloneState.log, (c) => c.name === '斬撃', isAwakened ? 2 : 1);
+                executeRemembranceEnhancement(player, cloneState.log, (c) => c.level === 1, isAwakened ? 2 : 1);
                 break;
             case 'regalia-hihiirokane':
                 const cardToAdd = isAwakened ? createMasterySlashFlash() : createSlashFlash();
                 player.hand.push(cardToAdd);
-                cloneState.log.push(`${player.name}はヒヒイロカネを使用: 『${cardToAdd.name}』を手に入れた。`);
+                cloneState.log.push(`${player.name}はヒヒイロカネを使用: ゲーム外から『${cardToAdd.name}』を手に入れた。`);
                 break;
             case 'regalia-totsukamatsurugi':
                 if (isAwakened) {
@@ -290,9 +288,11 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
                 break;
             case 'regalia-niraikanai':
                 if (isAwakened) {
-                    player.bloodCircuit.push(createStarterSlash());
-                    player.bloodCircuit.push(createStarterBlood());
-                    cloneState.log.push(`${player.name}はニライカナイを使用: 契告書からアーツ2枚を血廻へ送った(簡易)。`);
+                    const options = [createStarterSlash(), createStarterBlood()];
+                    const c1 = options[Math.floor(Math.random() * options.length)];
+                    const c2 = options[Math.floor(Math.random() * options.length)];
+                    player.bloodCircuit.push(c1, c2);
+                    cloneState.log.push(`${player.name}はニライカナイを使用: ゲーム外からアーツ2枚を血廻へ送った。`);
                 } else {
                     const milled = player.deck.splice(0, 2);
                     player.bloodCircuit.push(...milled); 
@@ -302,18 +302,23 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
             case 'regalia-kutoneshirika':
                 const bloodCount = isAwakened ? 3 : 1;
                 for(let i=0; i<bloodCount; i++) player.bloodPool.push(createStarterBlood());
-                cloneState.log.push(`${player.name}はクトネシリカを使用: プールに赤血を${bloodCount}枚追加した。`);
+                cloneState.log.push(`${player.name}はクトネシリカを使用: ゲーム外から赤血を${bloodCount}枚追加した。`);
                 break;
             case 'regalia-apoitakara':
                 if (isAwakened) {
-                    const drawn = drawCard(player, 3);
-                    player.deck = drawn.deck;
-                    const newCards = drawn.hand.slice(-3);
-                    const kept = newCards[0];
-                    const discarded = newCards.slice(1);
-                    player.hand = [...drawn.hand.slice(0, -3), kept];
-                    player.discard = [...drawn.discard, ...discarded];
-                    cloneState.log.push(`${player.name}はアポイタカラを使用: 3枚見て1枚(${kept?.name})を手札に加え、残りを捨てた。`);
+                    if (playerKey === 'cpu') {
+                        const drawn = drawCard(player, 3);
+                        player.deck = drawn.deck;
+                        const newCards = drawn.hand.slice(-3);
+                        const kept = newCards[0]; 
+                        const discarded = newCards.slice(1);
+                        player.hand = [...drawn.hand.slice(0, -3), kept];
+                        player.discard = [...drawn.discard, ...discarded];
+                        cloneState.log.push(`(CPU)${player.name}はアポイタカラを使用: 3枚見て1枚を手札に加え、残りを捨てた。`);
+                    } else {
+                        const deckTop3 = player.deck.splice(-3);
+                        cloneState.pendingResolution = { type: 'APOITAKARA_SELECTION', cards: deckTop3 };
+                    }
                 } else {
                     const drawn = drawCard(player, 1);
                     player.deck = drawn.deck;
@@ -325,24 +330,38 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
             case 'regalia-usuganeyoroi':
                 const slashCount = isAwakened ? 2 : 1;
                 for(let i=0; i<slashCount; i++) player.hand.push(createStarterSlash());
-                cloneState.log.push(`${player.name}はウスガネヨロイを使用: 斬撃を${slashCount}枚手に入れた。`);
+                cloneState.log.push(`${player.name}はウスガネヨロイを使用: ゲーム外から斬撃を${slashCount}枚手に入れた。`);
                 break;
             case 'regalia-obotsukagura':
-                player.hand.push(createObotsuFragment());
-                cloneState.log.push(`${player.name}はオボツカグラを使用: 『オボツの欠片』を手に入れた。`);
-                if (isAwakened) {
-                     const toCircuit = player.hand.slice(0, 2);
-                     if (toCircuit.length > 0) {
-                         player.hand = player.hand.slice(2);
-                         player.bloodCircuit.push(...toCircuit);
-                         const drawn = drawCard(player, toCircuit.length);
-                         player.deck = drawn.deck;
-                         player.hand = drawn.hand;
-                         player.discard = drawn.discard;
-                         cloneState.log.push(`${player.name}は手札を${toCircuit.length}枚血廻へ送り、同数引いた。`);
-                     }
+                if (!isAwakened) {
+                    if (playerKey === 'cpu') {
+                        if (Math.random() > 0.5) {
+                            player.hand.push(createObotsuFragment());
+                            cloneState.log.push(`(CPU)オボツカグラ: 欠片を入手。`);
+                        } else {
+                            player.hand.push(createStarterBlood());
+                            player.hand.push(createStarterBlood());
+                            cloneState.log.push(`(CPU)オボツカグラ: 赤血x2を入手。`);
+                        }
+                    } else {
+                        cloneState.pendingResolution = { type: 'OBOTSU_BASE_CHOICE' };
+                    }
+                } else {
+                    if (playerKey === 'cpu') {
+                         const toCircuit = player.hand.slice(0, 2);
+                         if (toCircuit.length > 0) {
+                             player.hand = player.hand.slice(2);
+                             player.bloodCircuit.push(...toCircuit);
+                             const drawn = drawCard(player, toCircuit.length);
+                             player.deck = drawn.deck;
+                             player.hand = drawn.hand;
+                             player.discard = drawn.discard;
+                             cloneState.log.push(`(CPU)オボツカグラ: 手札を${toCircuit.length}枚血廻へ送り、同数引いた。`);
+                         }
+                    } else {
+                        cloneState.pendingResolution = { type: 'OBOTSU_AWAKENED_HAND_SELECT' };
+                    }
                 }
-                player.isRegaliaAwakened = true;
                 break;
             default:
                 break;
@@ -353,9 +372,160 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
     }
 
     // ---------------------------------------------------------
+    // 次のターン開始時効果処理 (再帰的呼び出し用)
+    // ---------------------------------------------------------
+    case 'PROCESS_NEXT_TURN_START_EFFECT': {
+        if (!state.pendingTurnStartEffects || state.pendingTurnStartEffects.length === 0) {
+             return state;
+        }
+        
+        // 修正: 現在のターンプレイヤーを動的に取得
+        const currentPlayerKey = state.turnPlayerId === 'p1' ? 'player' : 'cpu';
+        const currentPlayer = cloneState.players[currentPlayerKey];
+        const card = state.pendingTurnStartEffects[0];
+        // 改行を削除して判定を堅牢にする
+        const desc = card.description.replace(/\n/g, '');
+
+        if (desc.includes('手札にあるアーツカードを1枚選ぶ')) {
+             if (state.turnPlayerId === 'p1') {
+                 cloneState.pendingResolution = { type: 'BLUE_SPHERE_UPGRADE' };
+             } else {
+                 // CPU: 自動で1枚目を選ぶ
+                 // 修正: cloneStateのプレイヤーオブジェクトを渡して更新させる
+                 executeRemembranceEnhancement(currentPlayer, cloneState.log);
+                 
+                 // 処理完了としてキューから削除して次へ
+                 cloneState.pendingTurnStartEffects.shift();
+                 return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
+             }
+        }
+        else if (desc.includes('デッキの上から2枚見る')) {
+             if (state.turnPlayerId === 'p1') {
+                 // 修正: currentPlayerのデッキを操作する
+                 const deckTop2 = currentPlayer.deck.splice(-2);
+                 cloneState.pendingResolution = { type: 'BLUE_SPHERE_DECK_CONTROL', cards: deckTop2 };
+             } else {
+                 // CPU: 何もしない（今回はログのみ）
+                 cloneState.log.push(`[天球の蒼] CPUはデッキトップを確認した。`);
+                 cloneState.pendingTurnStartEffects.shift();
+                 return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
+             }
+        }
+        
+        // 万が一、どちらにもマッチせずループに陥るのを防ぐためのガード
+        if (cloneState.pendingTurnStartEffects.length > 0 && cloneState.pendingTurnStartEffects[0] === card) {
+             // 未処理のまま残っていたら強制的に削除
+             cloneState.pendingTurnStartEffects.shift();
+             return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
+        }
+        
+        return cloneState;
+    }
+
+    // ---------------------------------------------------------
+    // 選択ポップアップの解決処理
+    // ---------------------------------------------------------
+    case 'RESOLVE_PENDING_ACTION': {
+        const { payload } = action;
+        const player = cloneState.players.player;
+        const pending = state.pendingResolution;
+
+        if (!pending) return state;
+
+        if (pending.type === 'APOITAKARA_SELECTION') {
+             // ... (既存処理)
+             const selectedIndex = payload.selectedIndex as number;
+             const cards = pending.cards;
+             const kept = cards[selectedIndex];
+             const discarded = cards.filter((_, i) => i !== selectedIndex);
+             player.hand.push(kept);
+             player.discard.push(...discarded);
+             cloneState.log.push(`${player.name}はアポイタカラの効果で「${kept.name}」を手札に加え、残りを捨てた。`);
+        } 
+        else if (pending.type === 'OBOTSU_BASE_CHOICE') {
+             // ... (既存処理)
+             if (payload.choice === 'fragment') {
+                 player.hand.push(createObotsuFragment());
+                 cloneState.log.push(`${player.name}はオボツカグラの効果で「オボツの欠片」を得た。`);
+             } else {
+                 player.hand.push(createStarterBlood());
+                 player.hand.push(createStarterBlood());
+                 cloneState.log.push(`${player.name}はオボツカグラの効果で「赤血」2枚を得た。`);
+             }
+        }
+        else if (pending.type === 'OBOTSU_AWAKENED_HAND_SELECT') {
+             // ... (既存処理)
+             const ids = payload.selectedIds as string[];
+             const toCircuit: Card[] = [];
+             const newHand: Card[] = [];
+             for(const c of player.hand) {
+                 if (ids.includes(c.id)) { toCircuit.push(c); } else { newHand.push(c); }
+             }
+             player.hand = newHand;
+             player.bloodCircuit.push(...toCircuit);
+             if (toCircuit.length > 0) {
+                 const drawn = drawCard(player, toCircuit.length);
+                 player.deck = drawn.deck;
+                 player.hand = drawn.hand;
+                 player.discard = drawn.discard;
+                 cloneState.log.push(`${player.name}は手札を${toCircuit.length}枚血廻へ送り、同数引いた。`);
+             }
+        }
+        // --- 天球の蒼: 追憶強化 ---
+        else if (pending.type === 'BLUE_SPHERE_UPGRADE') {
+             const cardId = payload.cardId;
+             const cardIndex = player.hand.findIndex(c => c.id === cardId);
+             if (cardIndex !== -1) {
+                 // 対象を1枚だけ強化するカスタムロジック
+                 const targetCard = player.hand[cardIndex];
+                 const upgraded = getUpgradedCard(targetCard);
+                 if (upgraded) {
+                     player.hand.splice(cardIndex, 1);
+                     player.bloodCircuit.push(targetCard);
+                     player.hand.push(upgraded);
+                     cloneState.log.push(`[天球の蒼] ${player.name}は${targetCard.name}を${upgraded.name}に強化した。`);
+                 } else {
+                     cloneState.log.push(`[天球の蒼] 強化対象外または強化不可だった。`);
+                 }
+             }
+             // 処理が終わったらキューから削除して次へ
+             if (cloneState.pendingTurnStartEffects) cloneState.pendingTurnStartEffects.shift();
+        }
+        // --- 天球の蒼: デッキ操作 ---
+        else if (pending.type === 'BLUE_SPHERE_DECK_CONTROL') {
+            // payload: { toCircuitIndices: number[], orderIndices: number[] }
+            // orderIndicesは、戻すカードのインデックス順序
+            const cards = pending.cards;
+            const toCircuitIdxs = payload.toCircuitIndices as number[];
+            const orderIdxs = payload.orderIndices as number[];
+            
+            const toCircuit = cards.filter((_, i) => toCircuitIdxs.includes(i));
+            const toDeck = orderIdxs.map(i => cards[i]); // 順番通りに取得
+
+            player.bloodCircuit.push(...toCircuit);
+            player.deck.push(...toDeck); // deck.pushは末尾追加＝デッキトップ？ BloodRecallは pop() でドローしてるので push はトップ
+            
+            cloneState.log.push(`[天球の蒼] ${toCircuit.length}枚を血廻へ、${toDeck.length}枚をデッキトップに戻した。`);
+            
+            if (cloneState.pendingTurnStartEffects) cloneState.pendingTurnStartEffects.shift();
+        }
+
+        // 解消
+        delete cloneState.pendingResolution;
+        
+        // 未処理のターン開始時効果があれば次を実行
+        if (cloneState.pendingTurnStartEffects && cloneState.pendingTurnStartEffects.length > 0) {
+            return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
+        }
+        
+        return cloneState;
+    }
+
+    // ---------------------------------------------------------
     // カード購入 (Recall)
     // ---------------------------------------------------------
     case 'RECALL_CARD': {
+        // ... (既存処理)
         const { playerId, pileIndex } = action;
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
         const player = cloneState.players[playerKey];
@@ -373,11 +543,12 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         
         player.field.push(marketCard); 
         recalculateAttackTotal(player);
+        if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
         
         resolveFieldEntryEffects(player, marketCard, cloneState.log);
         
-        // 効果で何か召喚されたりした場合の再計算
         recalculateAttackTotal(player);
+        if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
 
         player.remainingActions -= 1;
         cloneState.log.push(`${player.name} は ${marketCard.name} を購入 (Cost: ${marketCard.cost}, Act-1).`);
@@ -388,6 +559,7 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
     // ターンパス処理
     // ---------------------------------------------------------
     case 'PASS_TURN': {
+        // ... (既存処理)
         const { playerId } = action;
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
         cloneState.players[playerKey].hasPassed = true;
@@ -406,13 +578,15 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
     // 戦闘解決 (Blood Battle)
     // ---------------------------------------------------------
     case 'RESOLVE_BATTLE': {
+        // ... (既存処理)
         cloneState.phase = Phase.BloodBattle;
         const p1 = cloneState.players.player;
         const p2 = cloneState.players.cpu;
 
-        // 念のため再計算
         recalculateAttackTotal(p1);
+        if (p1.activeBuffs.permanentAtk) p1.attackTotal += p1.activeBuffs.permanentAtk;
         recalculateAttackTotal(p2);
+        if (p2.activeBuffs.permanentAtk) p2.attackTotal += p2.activeBuffs.permanentAtk;
 
         cloneState.log.push(`--- ブラッドバトル ---`);
         cloneState.log.push(`${p1.name} ATK: ${p1.attackTotal} vs ${p2.name} ATK: ${p2.attackTotal}`);
@@ -466,9 +640,7 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
     case 'CLEANUP': {
         cloneState.phase = Phase.Cleanup;
         
-        // 1. 各プレイヤーのクリーンアップ処理（ダメージ処理、リソースリセット、ドロー）
         [cloneState.players.player, cloneState.players.cpu].forEach(p => {
-            // ウスガネの継続ダメージ処理
             if (p.activeBuffs.usuganeBurn) {
                 const opponentKey = p.id === 'p1' ? 'cpu' : 'player';
                 const opponent = cloneState.players[opponentKey];
@@ -481,12 +653,9 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
                      checkAwakening(opponent, cloneState.log);
                 }
             }
-            
-            // 共通クリーンナップ処理の呼び出し
             performCleanup(p, cloneState.log);
         });
 
-        // 2. 次のフェーズ設定
         cloneState.phase = Phase.Main;
         cloneState.turnPlayerId = cloneState.firstPlayerId;
         cloneState.log.push(`--- ターン終了. 新しいラウンドの開始. 先攻: ${cloneState.firstPlayerId === 'p1' ? 'Player' : 'CPU'} ---`);
@@ -495,7 +664,12 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         const nextPlayerKey = cloneState.turnPlayerId === cloneState.players.player.id ? 'player' : 'cpu';
         const nextPlayer = cloneState.players[nextPlayerKey];
         
-        resolveStartOfTurnEffects(nextPlayer, cloneState.log);
+        // 修正: キューを取得して保存し、処理を開始する
+        const pendingEffects = resolveStartOfTurnEffects(nextPlayer, cloneState.log);
+        if (pendingEffects.length > 0) {
+            cloneState.pendingTurnStartEffects = pendingEffects;
+            return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
+        }
 
         return cloneState;
     }
@@ -513,4 +687,15 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
     default:
       return state;
   }
+};
+
+// ヘルパー関数: 再定義 (gameLogicからimport不可のためここで定義またはimport)
+// 注意: engine.ts内ではexecuteRemembranceEnhancement等を使うため、importが必要ですが、
+// 上部でimport済みであることを前提としています。
+const getUpgradedCard = (card: Card): Card | null => {
+    if (card.name === '斬撃') return createSlashFlash();
+    if (card.name === '斬撃一閃') return createMasterySlashFlash();
+    if (card.name === '赤血') return createRedScarletBlood();
+    if (card.name === '赤緋血') return createTorrentRedStarBlood();
+    return null;
 };

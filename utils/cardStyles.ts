@@ -17,7 +17,7 @@ interface CardStyle {
  */
 export const getCardStyles = (card: Card): CardStyle => {
   // 1. 名前による特殊判定（固有カードなど）
-  if (card.name.includes('桜流し')) {
+  if (card.name.includes('桜流し')) {//桜色
     return {
       outer: 'bg-pink-200 border-pink-400',
       header: 'bg-pink-600 text-white',
@@ -28,7 +28,7 @@ export const getCardStyles = (card: Card): CardStyle => {
       typeTag: 'bg-pink-100 text-pink-800'
     };
   }
-  if (card.name.includes('ラムダ')) {
+  if (card.name.includes('ラムダ')) {//藍
     return {
       outer: 'bg-indigo-200 border-indigo-500',
       header: 'bg-indigo-800 text-white',
@@ -39,7 +39,7 @@ export const getCardStyles = (card: Card): CardStyle => {
       typeTag: 'bg-indigo-100 text-indigo-800'
     };
   }
-  if (card.name === '発狂') {
+  if (card.name === '発狂') {//紫
      return {
       outer: 'bg-purple-300 border-purple-800',
       header: 'bg-purple-900 text-white',
@@ -55,7 +55,7 @@ export const getCardStyles = (card: Card): CardStyle => {
   switch (card.type) {
     case CType.Blood:
       return {
-        outer: 'bg-red-200 border-red-800',
+        outer: 'bg-red-200 border-red-800',//赤
         header: 'bg-red-900 text-white',
         inner: 'bg-red-50',
         text: 'text-red-900',
