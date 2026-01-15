@@ -211,7 +211,10 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
         const player = cloneState.players[playerKey];
         
-        if (player.remainingActions <= 0) return state;
+        if (player.remainingActions <= 0) {
+            cloneState.log.push(`[System] ${player.name} cannot craft (No Actions).`);
+            return state;
+        }
 
         const recipe = CRAFT_RECIPES.find(r => r.id === recipeId);
         if (!recipe) return state;
@@ -225,7 +228,10 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
             }
         }
 
-        if (removedCards.length !== paymentCardIds.length) return state;
+        if (removedCards.length !== paymentCardIds.length) {
+            cloneState.log.push(`[System] ${player.name} craft failed (Missing cards).`);
+            return state;
+        }
 
         player.bloodCircuit.push(...removedCards);
         const resultCard = recipe.createResult();
@@ -246,13 +252,19 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         const player = cloneState.players[playerKey];
         const opponent = cloneState.players[opponentKey];
         
-        if (!player.regalia || player.regalia.isTapped) return state;
+        if (!player.regalia || player.regalia.isTapped) {
+            cloneState.log.push(`[System] ${player.name} Self Harm failed (Already tapped or No Regalia).`);
+            return state;
+        }
 
         const stats = getRegaliaStats(player);
         if (!stats) return state;
 
         const damage = stats.selfHarmCost;
-        if (player.lifeCards.length < damage) return state;
+        if (player.lifeCards.length < damage) {
+             cloneState.log.push(`[System] ${player.name} Self Harm failed (Not enough life cards: ${player.lifeCards.length}/${damage}).`);
+             return state;
+        }
 
         if (player.activeBuffs.hihiirokaneConvert) {
             for(let i=0; i<damage; i++) player.bloodPool.push(createStarterBlood());
@@ -530,13 +542,22 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
         const player = cloneState.players[playerKey];
 
-        if (player.remainingActions <= 0) return state;
+        if (player.remainingActions <= 0) {
+             cloneState.log.push(`[System] ${player.name} cannot recall (No Actions).`);
+             return state;
+        }
 
         const pile = cloneState.market.recallPiles[pileIndex];
-        if (!pile || pile.length === 0) return state;
+        if (!pile || pile.length === 0) {
+            cloneState.log.push(`[System] ${player.name} recall failed (Pile Empty).`);
+            return state;
+        }
 
         const marketCard = pile[pile.length - 1];
-        if (player.bloodPool.length < marketCard.cost) return state; 
+        if (player.bloodPool.length < marketCard.cost) {
+            cloneState.log.push(`[System] ${player.name} recall failed (Not enough blood: ${player.bloodPool.length}/${marketCard.cost}).`);
+            return state; 
+        }
         
         const paid = player.bloodPool.splice(0, marketCard.cost);
         pile.pop();
@@ -582,6 +603,10 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         cloneState.phase = Phase.BloodBattle;
         const p1 = cloneState.players.player;
         const p2 = cloneState.players.cpu;
+
+        // メインフェイズで使い切れなかった余剰ブラッドを破棄
+        p1.bloodPool = [];
+        p2.bloodPool = [];
 
         recalculateAttackTotal(p1);
         if (p1.activeBuffs.permanentAtk) p1.attackTotal += p1.activeBuffs.permanentAtk;
@@ -681,7 +706,40 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         if (state.turnPlayerId !== state.players.cpu.id || state.phase !== Phase.Main) return state;
         
         const actionToTake = decideCpuAction(cloneState);
-        return gameReducer(state, actionToTake);
+        
+        // Debug: アクション内容をログに出力（デバッグ用）
+        let debugMsg = `[CPU] Thinking: ${actionToTake.type}`;
+        if (actionToTake.type === 'CRAFT_CARD') debugMsg += ` (Recipe: ${actionToTake.recipeId})`;
+        if (actionToTake.type === 'RECALL_CARD') debugMsg += ` (Pile: ${actionToTake.pileIndex})`;
+        if (actionToTake.type === 'PLAY_CARD') debugMsg += ` (Card: ${actionToTake.cardId})`;
+        cloneState.log.push(debugMsg);
+
+        // 再帰的にアクションを実行し、状態が変化したか確認する
+        // 注意: Reducerは純粋関数であるべきだが、デバッグ目的でログ出力を行う
+        const nextState = gameReducer(cloneState, actionToTake);
+
+        // 進捗判定: ログの行数が増えている、またはフェーズ/ターンプレイヤーが変わっている
+        const hasProgressed = nextState.log.length > cloneState.log.length || 
+                              nextState.phase !== cloneState.phase ||
+                              nextState.turnPlayerId !== cloneState.turnPlayerId;
+
+        if (!hasProgressed) {
+             // アクション失敗（状態が変わらなかった）
+             const failureCount = (state.cpuFailureCount || 0) + 1;
+             nextState.cpuFailureCount = failureCount;
+             nextState.log.push(`[System] CPU Action Failed (Count: ${failureCount})`);
+
+             if (failureCount >= 3) {
+                 nextState.log.push(`[System] CPU Stuck. Forcing PASS.`);
+                 // 無限ループ防止のため強制パス
+                 return gameReducer(nextState, { type: 'PASS_TURN', playerId: state.players.cpu.id });
+             }
+             return nextState;
+        } else {
+             // 成功したらカウンタリセット
+             nextState.cpuFailureCount = 0;
+             return nextState;
+        }
     }
 
     default:

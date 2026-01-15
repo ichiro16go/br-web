@@ -48,11 +48,18 @@ export const decideCpuAction = (state: GameState): ActionType => {
         }
     }
 
-    // 3. 自傷アクション（ライフに余裕があり、かつコストが払える場合）
-    // バグ修正: ライフ数値だけでなく、実際にコスト分のライフカードがあるかチェックする
+    // 3. 自傷アクション（コストが払え、かつ死なない場合のみ実行）
     const stats = getRegaliaStats(cpu);
-    if (cpu.regalia && !cpu.regalia.isTapped && cpu.life > 5 && stats && cpu.lifeCards.length >= stats.selfHarmCost) {
+    if (cpu.regalia && !cpu.regalia.isTapped && stats) {
+        const cost = stats.selfHarmCost;
+        // エンジンの判定と一致させる: ライフカードの枚数がコスト以上必要
+        const canAfford = cpu.lifeCards.length >= cost;
+        // AIは自殺しないようにする (残りライフがコストより多い場合のみ)
+        const wontDie = cpu.life > cost;
+
+        if (canAfford && wontDie) {
             return { type: 'SELF_HARM', playerId: cpu.id };
+        }
     }
 
     // 4. 手札からカードをプレイ

@@ -7,6 +7,7 @@ import { PlayerArea } from './components/PlayerArea';
 import { Market } from './components/Market';
 import { CardSelectionModal, SimpleChoiceModal, HandSelectionModal, BlueSphereDeckControlModal } from './components/GameModals';
 import { EntranceScreen } from './components/EntranceScreen';
+import { GameLog } from './components/GameLog';
 
 // --- テーマカラー定義ヘルパー ---
 // (定数ファイルへ移動推奨だが、現状はここで維持)
@@ -60,7 +61,8 @@ const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string): Ga
         `Player 1 uses ${p1Regalia.name}`, 
         `CPU uses ${cpuRegalia.name}`,
         `Market Colors: ${selectedSets.map(s => s.colorName).join(', ')}`
-    ]
+    ],
+    cpuFailureCount: 0
   };
 };
 
@@ -234,13 +236,6 @@ const App: React.FC = () => {
 // ゲームコンポーネント
 const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [state.log]);
 
   // AIループ
   useEffect(() => {
@@ -295,24 +290,11 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
     <div className="h-screen w-full bg-[#1a0b0b] text-gray-200 flex overflow-hidden font-sans select-none">
       
       {/* 左サイドバー: ログ & ステータス */}
-      <div className="w-48 bg-black/60 border-r border-red-900/30 flex flex-col hidden lg:flex z-20">
-        <div className="p-2 bg-red-950/20 border-b border-red-900/30 text-center font-cinzel text-red-500">
-           Round Log
-        </div>
-        <div className="flex-1 overflow-y-auto p-2 text-xs font-mono space-y-2 custom-scrollbar" ref={scrollRef}>
-             {state.log.map((msg, i) => (
-                <div key={i} className="border-b border-white/5 pb-1 text-gray-400 last:text-white">{msg}</div>
-            ))}
-        </div>
-        <div className="p-4 border-t border-red-900/30 bg-black/40">
-            <div className="text-xs text-gray-500 uppercase mb-1">Turn</div>
-            <div className={`text-sm font-bold ${state.turnPlayerId === 'p1' ? 'text-red-400' : 'text-blue-400'}`}>
-                {state.turnPlayerId === 'p1' ? 'YOUR TURN' : 'CPU TURN'}
-            </div>
-            <div className="mt-2 text-xs text-gray-500 uppercase mb-1">Phase</div>
-            <div className="text-sm font-bold text-white">{state.phase}</div>
-        </div>
-      </div>
+      <GameLog 
+        logs={state.log} 
+        turnPlayerId={state.turnPlayerId} 
+        phase={state.phase} 
+      />
 
       {/* 中央: ゲームボード */}
       <div className="flex-1 flex flex-col relative bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
@@ -327,6 +309,7 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                 onCraft={() => {}} 
                 onActivateBloodRecall={() => {}}
                 isOpponent={true}
+                phase={state.phase}
               />
         </div>
 
@@ -340,6 +323,7 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                 onCraft={handleCraft}
                 onActivateBloodRecall={handleActivateBloodRecall}
                 isOpponent={false}
+                phase={state.phase}
               />
         </div>
 

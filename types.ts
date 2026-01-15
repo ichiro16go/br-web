@@ -1,3 +1,4 @@
+
 /**
  * カードの種類を定義する列挙型
  */
@@ -133,6 +134,9 @@ export interface GameState {
   pendingResolution?: PendingResolution;
   // ターン開始時に順次解決すべき効果を持つカードのキュー
   pendingTurnStartEffects?: Card[];
+  
+  // AIデバッグ・ループ防止用
+  cpuFailureCount?: number;
 }
 
 /**

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlayerState, RegaliaCard } from '../types';
+import { PlayerState, RegaliaCard, Phase } from '../types';
 import { Card } from './Card';
 import { Zone } from './Zone';
 import { CRAFT_RECIPES } from '../constants/index';
@@ -13,6 +13,7 @@ interface PlayerAreaProps {
   onCraft: (recipeId: string, paymentCardIds: string[]) => void;
   onActivateBloodRecall: () => void;
   isOpponent?: boolean;
+  phase: Phase; // アニメーション制御のためにフェーズを受け取る
 }
 
 export const PlayerArea: React.FC<PlayerAreaProps> = ({ 
@@ -22,7 +23,8 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
     onSelfHarm, 
     onCraft,
     onActivateBloodRecall,
-    isOpponent = false 
+    isOpponent = false,
+    phase
 }) => {
   const [selectedRegalia, setSelectedRegalia] = useState<RegaliaCard | null>(null);
   const [showCraftModal, setShowCraftModal] = useState(false);
@@ -133,9 +135,13 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                                 else if (count > 6) marginStyle = { marginLeft: '-2rem' };
                                 else marginStyle = { marginLeft: '0.5rem' };
                             }
+                            
+                            // 戦闘フェイズならシェイク、メインフェイズならプレイ時スライドアップ
+                            const animClass = phase === Phase.BloodBattle ? 'animate-shake' : 'animate-play-card';
+
                             return (
                                 <div key={c.id} className="transition-all duration-300 relative transform" style={{ ...marginStyle, zIndex: i }}>
-                                    <Card card={c} size="md" />
+                                    <Card card={c} size="md" className={animClass} />
                                 </div>
                             );
                         })}
@@ -149,7 +155,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                   <Zone title="Blood Pool" count={player.bloodPool.length} className="h-full bg-red-950/10 border-red-900/30 flex items-center justify-start">
                       <div className="flex -space-x-8 px-4 overflow-x-auto w-full custom-scrollbar py-2 items-center">
                           {player.bloodPool.map(c => (
-                              <Card key={c.id} card={c} size="sm" isFaceDown={false} />
+                              <Card key={c.id} card={c} size="sm" isFaceDown={false} className="animate-fade-in" />
                           ))}
                       </div>
                   </Zone>
@@ -226,8 +232,15 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                         <div key={i} className="w-16 h-24 bg-red-900 border border-red-800 rounded shadow-md"></div>
                     ))
                 ) : (
-                    player.hand.map(c => (
-                        <Card key={c.id} card={c} size="lg" onClick={() => onPlayCard(c.id)} />
+                    player.hand.map((c, i) => (
+                        <Card 
+                            key={c.id} 
+                            card={c} 
+                            size="lg" 
+                            onClick={() => onPlayCard(c.id)} 
+                            className="animate-draw"
+                            style={{ animationDelay: `${i * 0.05}s` }}
+                        />
                     ))
                 )}
            </div>

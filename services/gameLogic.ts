@@ -294,8 +294,7 @@ export const performCleanup = (player: PlayerState, log: string[]): void => {
     player.discard.push(...discardCards);
     player.field = remainingCards;
 
-    // リソースリセット
-    player.bloodPool = [];
+    // リソースリセット (注: bloodPoolのクリアはRESOLVE_BATTLEで行うためここでは行わない)
     player.hasPassed = false;
     
     // 攻撃力再計算 (場に残ったカードの攻撃力を反映)

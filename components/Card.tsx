@@ -9,13 +9,15 @@ interface CardProps {
   isFaceDown?: boolean;
   // Regalia専用: 覚醒状態フラグ
   isAwakened?: boolean; 
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 /**
  * カードコンポーネント
  * カードの種類に応じた見た目をレンダリングする
  */
-export const Card: React.FC<CardProps> = ({ card, onClick, size = 'md', isFaceDown = false, isAwakened = false }) => {
+export const Card: React.FC<CardProps> = ({ card, onClick, size = 'md', isFaceDown = false, isAwakened = false, className = '', style }) => {
   const sizeClasses = {
     xs: 'w-10 h-14 text-[0.4rem]',
     sm: 'w-16 h-24 text-[0.5rem]',
@@ -30,7 +32,8 @@ export const Card: React.FC<CardProps> = ({ card, onClick, size = 'md', isFaceDo
   if (isFaceDown) {
     return (
       <div 
-        className={`${sizeClasses[size]} bg-red-900 border border-red-950 rounded shadow-sm flex items-center justify-center cursor-default`}
+        className={`${sizeClasses[size]} bg-red-900 border border-red-950 rounded shadow-sm flex items-center justify-center cursor-default ${className}`}
+        style={style}
       >
         <div className="w-4 h-4 rounded-full border border-red-800 bg-red-950"></div>
       </div>
@@ -46,11 +49,13 @@ export const Card: React.FC<CardProps> = ({ card, onClick, size = 'md', isFaceDo
      return (
         <div 
         onClick={onClick}
+        style={style}
         className={`
           ${sizeClasses[size]} 
           relative bg-gray-900 border-2 lg:border-4 ${isAwakened ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'border-red-800 shadow-lg'} 
           rounded flex flex-col overflow-hidden transition-transform hover:-translate-y-1 cursor-pointer select-none text-gray-200
           ${card.isTapped ? 'opacity-50 grayscale' : ''}
+          ${className}
         `}
       >
         {/* カード名 */}
@@ -104,11 +109,13 @@ export const Card: React.FC<CardProps> = ({ card, onClick, size = 'md', isFaceDo
   return (
     <div 
       onClick={onClick}
+      style={style}
       className={`
         ${sizeClasses[size]} 
         relative ${styles.outer} border-2 lg:border-4 rounded shadow-lg 
         flex flex-col overflow-hidden transition-transform hover:-translate-y-1 hover:shadow-xl cursor-pointer select-none
         ${card.isTapped ? 'opacity-50 grayscale' : ''}
+        ${className}
       `}
     >
       <div className={`${styles.header} p-0.5 lg:p-1 font-bold truncate text-center leading-tight`}>
