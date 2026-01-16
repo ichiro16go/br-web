@@ -4,6 +4,36 @@ import { Card } from './Card';
 import { CRAFT_RECIPES } from '../constants/index';
 
 // ----------------------------------------------------------------------
+// カード詳細表示モーダル (CardDetailModal)
+// ----------------------------------------------------------------------
+export const CardDetailModal: React.FC<{ card: CardType; onClose: () => void }> = ({ card, onClose }) => {
+    return (
+        <div className="absolute inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+             <div className="bg-gray-900 border-2 border-gray-600 rounded-lg max-w-sm w-full p-6 flex flex-col items-center shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={onClose}>✕</button>
+                <h3 className="text-xl font-cinzel text-gray-200 mb-4 border-b border-gray-700 pb-2 w-full text-center">
+                    {card.name}
+                </h3>
+                
+                <div className="mb-6 transform scale-110">
+                    <Card card={card} size="md" />
+                </div>
+
+                <div className="bg-black/40 p-3 rounded border border-gray-800 w-full">
+                    <div className="flex justify-between text-xs text-gray-500 mb-2 uppercase font-bold border-b border-gray-800 pb-1">
+                        <span>Type: {card.type}</span>
+                        <span>Cost: {card.cost} / Atk: {card.attack}</span>
+                    </div>
+                    <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                        {card.description}
+                    </p>
+                </div>
+             </div>
+        </div>
+    );
+};
+
+// ----------------------------------------------------------------------
 // 神器詳細モーダル (RegaliaModal)
 // ----------------------------------------------------------------------
 // 神器のステータス詳細を表示し、自傷アクションを行うためのモーダル
@@ -24,15 +54,15 @@ export const RegaliaModal: React.FC<RegaliaModalProps> = ({ regalia, player, isC
             <h4 className={`text-sm font-bold uppercase mb-2 ${active ? 'text-red-400' : 'text-gray-500'}`}>{title}</h4>
             <div className="grid grid-cols-3 gap-2 text-center mb-3">
                 <div>
-                    <div className="text-[10px] text-gray-500 uppercase">Hand</div>
+                    <div className="text-[10px] text-gray-500 uppercase">手札</div>
                     <div className={`text-lg font-bold ${active ? 'text-blue-300' : 'text-gray-400'}`}>{stats.handSize}</div>
                 </div>
                 <div>
-                    <div className="text-[10px] text-gray-500 uppercase">Dmg</div>
+                    <div className="text-[10px] text-gray-500 uppercase">自傷</div>
                     <div className={`text-lg font-bold ${active ? 'text-red-300' : 'text-gray-400'}`}>{stats.selfHarmCost}</div>
                 </div>
                 <div>
-                    <div className="text-[10px] text-gray-500 uppercase">Act</div>
+                    <div className="text-[10px] text-gray-500 uppercase">行動</div>
                     <div className={`text-lg font-bold ${active ? 'text-purple-300' : 'text-gray-400'}`}>{stats.bloodPact}</div>
                 </div>
             </div>
@@ -53,8 +83,8 @@ export const RegaliaModal: React.FC<RegaliaModalProps> = ({ regalia, player, isC
                 <p className="text-gray-400 italic mb-6 text-sm">{regalia.description}</p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <StatsBlock title="Base Form (Normal)" stats={regalia.base} active={!isAwakened} />
-                    <StatsBlock title="Awakened Form (Life <= 10)" stats={regalia.awakened} active={isAwakened} />
+                    <StatsBlock title="通常形態 (Normal)" stats={regalia.base} active={!isAwakened} />
+                    <StatsBlock title="覚醒形態 (Life <= 10)" stats={regalia.awakened} active={isAwakened} />
                 </div>
 
                 <div className="flex justify-end gap-3 items-center">
@@ -103,9 +133,9 @@ export const CraftModal: React.FC<CraftModalProps> = ({ player, onClose, onCraft
             <div className="bg-gray-900 border-2 border-purple-800 rounded-lg max-w-2xl w-full p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto custom-scrollbar pb-32" onClick={e => e.stopPropagation()}>
                 <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={onClose}>✕</button>
                 <h3 className="text-2xl font-cinzel text-purple-400 mb-6 border-b border-purple-900 pb-2 flex justify-between items-center">
-                    <span>Arts Enhancement</span>
+                    <span>アーツ強化 (Craft)</span>
                     <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500 font-sans">Remaining Acts:</span>
+                        <span className="text-xs text-gray-500 font-sans">残り行動回数:</span>
                         <span className={`text-lg font-bold ${player.remainingActions > 0 ? 'text-white' : 'text-red-500'}`}>{player.remainingActions}</span>
                     </div>
                 </h3>
@@ -130,12 +160,12 @@ export const CraftModal: React.FC<CraftModalProps> = ({ player, onClose, onCraft
                                         <span className={`font-bold text-lg ${isSpecial ? 'text-pink-300' : 'text-gray-200'}`}>
                                             {recipe.name}
                                         </span>
-                                        {canCraft && <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">READY</span>}
-                                        {!hasAction && matchIds !== null && <span className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">NO ACT</span>}
+                                        {canCraft && <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">可能</span>}
+                                        {!hasAction && matchIds !== null && <span className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">行動力不足</span>}
                                     </div>
                                     <p className="text-sm text-gray-400 mb-2">{recipe.description}</p>
                                     <div className={`text-xs ${isSpecial ? 'text-pink-400' : 'text-purple-300'}`}>
-                                        Result: {resultPreview.name} {resultPreview.level > 0 && `(Lv.${resultPreview.level})`}
+                                        生成: {resultPreview.name} {resultPreview.level > 0 && `(Lv.${resultPreview.level})`}
                                     </div>
                                 </div>
                                 <div>
@@ -153,7 +183,7 @@ export const CraftModal: React.FC<CraftModalProps> = ({ player, onClose, onCraft
                                             : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                                         }`}
                                     >
-                                        Craft
+                                        強化
                                     </button>
                                 </div>
                             </div>
@@ -187,11 +217,11 @@ export const CardListModal: React.FC<CardListModalProps> = ({ title, cards, colo
                 <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={onClose}>✕</button>
                 <h3 className={`text-2xl font-cinzel ${themeClasses.text} mb-6 border-b ${themeClasses.border} pb-2 flex justify-between items-center`}>
                     <span>{title}</span>
-                    <span className={`text-sm font-sans ${themeClasses.subText}`}>Total: {cards.length}</span>
+                    <span className={`text-sm font-sans ${themeClasses.subText}`}>枚数: {cards.length}</span>
                 </h3>
                 
                 {cards.length === 0 ? (
-                    <div className="text-center text-gray-600 py-12">No cards.</div>
+                    <div className="text-center text-gray-600 py-12">カードがありません。</div>
                 ) : (
                     <div className="flex flex-wrap gap-2 justify-center">
                         {cards.map((c, i) => (
@@ -229,15 +259,15 @@ export const DeckListModal: React.FC<DeckListModalProps> = ({ title, cards, onCl
                 <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={onClose}>✕</button>
                 <h3 className="text-2xl font-cinzel text-red-400 mb-2 border-b border-red-800 pb-2 flex justify-between items-center">
                     <span>{title}</span>
-                    <span className="text-sm font-sans text-red-300">Total: {cards.length}</span>
+                    <span className="text-sm font-sans text-red-300">枚数: {cards.length}</span>
                 </h3>
                 <p className="text-xs text-gray-500 mb-6 flex items-center gap-2">
                     <span className="text-yellow-500">⚠</span>
-                    <span>Card order is hidden (Sorted by Type/Name).</span>
+                    <span>カード順は隠されています（種類/名前順で表示）。</span>
                 </p>
                 
                 {displayCards.length === 0 ? (
-                    <div className="text-center text-gray-600 py-12">No cards in deck.</div>
+                    <div className="text-center text-gray-600 py-12">デッキにカードがありません。</div>
                 ) : (
                     <div className="flex flex-wrap gap-2 justify-center">
                         {displayCards.map((c, i) => (
@@ -273,7 +303,7 @@ export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]
                 <h3 className="text-2xl font-cinzel text-yellow-500 mb-2">{title}</h3>
                 <p className="text-gray-400 mb-8">{description}</p>
                 {filteredCards.length === 0 ? (
-                    <div className="text-gray-500 mb-8">No selectable cards.</div>
+                    <div className="text-gray-500 mb-8">選択できるカードがありません。</div>
                 ) : (
                     <div className="flex justify-center gap-4 flex-wrap">
                         {filteredCards.map(({ card, originalIndex }) => (
@@ -283,7 +313,7 @@ export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]
                                     onClick={() => onResolve({ selectedIndex: originalIndex })}
                                     className="bg-yellow-700 hover:bg-yellow-600 text-white px-4 py-1 rounded font-bold"
                                 >
-                                    Select
+                                    選択
                                 </button>
                             </div>
                         ))}
@@ -294,7 +324,7 @@ export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]
                     onClick={() => onResolve({ selectedIndex: -1 })} 
                     className="mt-8 px-6 py-2 border border-gray-600 rounded text-gray-400 hover:text-white hover:border-gray-400"
                  >
-                    Cancel / Skip
+                    キャンセル / スキップ
                  </button>
             </div>
         </div>
@@ -359,9 +389,9 @@ export const HandSelectionModal: React.FC<HandSelectionModalProps> = ({
                 <h3 className="text-2xl font-cinzel text-blue-400 mb-2">{title}</h3>
                 <p className="text-gray-300 mb-2">{description}</p>
                 <p className="text-sm text-blue-300 mb-6">
-                    Selected: {selectedIds.length} 
+                    選択中: {selectedIds.length} 
                     {maxSelect < 99 && ` / ${maxSelect}`}
-                    {minSelect > 0 && ` (Min: ${minSelect})`}
+                    {minSelect > 0 && ` (最低: ${minSelect})`}
                 </p>
                 
                 <div className="flex flex-wrap justify-center gap-3 mb-8">
@@ -394,14 +424,14 @@ export const HandSelectionModal: React.FC<HandSelectionModalProps> = ({
                         disabled={!isValid}
                         className={`px-8 py-3 rounded font-bold text-lg ${isValid ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
                     >
-                        Confirm ({selectedIds.length})
+                        決定 ({selectedIds.length})
                     </button>
                     {/* 詰み防止用のCancelボタン */}
                     <button 
                         onClick={() => onResolve({ selectedIds: [] })}
                         className="px-6 py-3 rounded border border-gray-600 text-gray-400 hover:text-white hover:bg-gray-800"
                     >
-                        Cancel / Skip
+                        キャンセル / スキップ
                     </button>
                 </div>
              </div>
@@ -418,7 +448,7 @@ export const CircuitSelectionModal: React.FC<ChoiceModalProps & { circuit: CardT
                 <p className="text-gray-300 mb-8">{description}</p>
                 
                 {circuit.length === 0 ? (
-                     <div className="text-gray-500 mb-8">No cards in Blood Circuit.</div>
+                     <div className="text-gray-500 mb-8">血廻にカードがありません。</div>
                 ) : (
                     <div className="flex flex-wrap justify-center gap-3 mb-8">
                         {circuit.map((c, i) => (
@@ -428,14 +458,14 @@ export const CircuitSelectionModal: React.FC<ChoiceModalProps & { circuit: CardT
                                     onClick={() => onResolve({ selectedIndex: i })}
                                     className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-1 rounded font-bold"
                                 >
-                                    Select
+                                    選択
                                 </button>
                             </div>
                         ))}
                     </div>
                 )}
                  {/* 詰み防止用ボタン */}
-                 <button onClick={() => onResolve({ selectedIndex: -1 })} className="bg-gray-700 px-6 py-2 rounded text-gray-300 hover:bg-gray-600">Close / Skip</button>
+                 <button onClick={() => onResolve({ selectedIndex: -1 })} className="bg-gray-700 px-6 py-2 rounded text-gray-300 hover:bg-gray-600">閉じる / スキップ</button>
             </div>
         </div>
     );
@@ -480,22 +510,22 @@ export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: Ca
                 <div className="flex justify-center gap-8 mb-8">
                     {/* Circuit Zone */}
                     <div className="border border-purple-500/50 bg-purple-900/20 p-4 rounded min-w-[200px] min-h-[250px]">
-                        <h4 className="text-purple-300 font-bold mb-4 border-b border-purple-500/30 pb-2">To Blood Circuit</h4>
+                        <h4 className="text-purple-300 font-bold mb-4 border-b border-purple-500/30 pb-2">血廻へ送る</h4>
                         <div className="flex flex-col gap-2">
                             {circuitIndices.map(i => (
                                 <div key={i} className="cursor-pointer hover:opacity-80" onClick={() => toggleDestination(i)}>
                                     <Card card={cards[i]} size="sm" />
                                 </div>
                             ))}
-                            {circuitIndices.length === 0 && <span className="text-xs text-gray-500 mt-8">Click card to move here</span>}
+                            {circuitIndices.length === 0 && <span className="text-xs text-gray-500 mt-8">カードをクリックして移動</span>}
                         </div>
                     </div>
 
                     {/* Deck Top Zone */}
                     <div className="border border-blue-500/50 bg-blue-900/20 p-4 rounded min-w-[200px] min-h-[250px]">
-                        <h4 className="text-blue-300 font-bold mb-4 border-b border-blue-500/30 pb-2">Return to Deck Top</h4>
+                        <h4 className="text-blue-300 font-bold mb-4 border-b border-blue-500/30 pb-2">デッキの上に戻す</h4>
                         <div className="flex flex-col gap-2 items-center">
-                            <span className="text-[10px] text-gray-400 mb-1">Top (Draw 1st)</span>
+                            <span className="text-[10px] text-gray-400 mb-1">上 (次に引く)</span>
                             {deckIndices.map((cardIndex, displayIndex) => (
                                 <div key={cardIndex} className="flex items-center gap-2">
                                      <div className="cursor-pointer hover:opacity-80" onClick={() => toggleDestination(cardIndex)}>
@@ -507,7 +537,7 @@ export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: Ca
                                      </div>
                                 </div>
                             ))}
-                            <span className="text-[10px] text-gray-400 mt-1">Bottom (Draw later)</span>
+                            <span className="text-[10px] text-gray-400 mt-1">下 (後で引く)</span>
                         </div>
                     </div>
                 </div>
@@ -516,7 +546,7 @@ export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: Ca
                     onClick={() => onResolve({ toCircuitIndices: circuitIndices, orderIndices: deckIndices })}
                     className="bg-blue-700 hover:bg-blue-600 text-white px-8 py-3 rounded font-bold text-lg"
                 >
-                    Confirm
+                    決定
                 </button>
              </div>
         </div>
@@ -572,14 +602,14 @@ export const IndigoDeckStrategyModal: React.FC<ChoiceModalProps & { cards: CardT
                                  <Card card={card} size="md" />
                                  <div className="flex flex-col gap-2 w-full">
                                      {isArt && (
-                                         <button onClick={() => handleActionChange(i, 'upgrade')} className={`text-xs px-2 py-1 rounded border ${currentAction === 'upgrade' ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>Enhance & Discard</button>
+                                         <button onClick={() => handleActionChange(i, 'upgrade')} className={`text-xs px-2 py-1 rounded border ${currentAction === 'upgrade' ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>強化して捨てる</button>
                                      )}
-                                     <button onClick={() => handleActionChange(i, 'discard')} className={`text-xs px-2 py-1 rounded border ${currentAction === 'discard' ? 'bg-red-900/50 border-red-500 text-red-200' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>Discard</button>
-                                     <button onClick={() => handleActionChange(i, 'deck')} className={`text-xs px-2 py-1 rounded border ${currentAction === 'deck' ? 'bg-blue-900/50 border-blue-500 text-blue-200' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>Return to Deck</button>
+                                     <button onClick={() => handleActionChange(i, 'discard')} className={`text-xs px-2 py-1 rounded border ${currentAction === 'discard' ? 'bg-red-900/50 border-red-500 text-red-200' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>捨てる</button>
+                                     <button onClick={() => handleActionChange(i, 'deck')} className={`text-xs px-2 py-1 rounded border ${currentAction === 'deck' ? 'bg-blue-900/50 border-blue-500 text-blue-200' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>山札に戻す</button>
                                  </div>
                                  {currentAction === 'deck' && (
                                      <div className="flex items-center gap-2 mt-1">
-                                         <span className="text-[10px] text-gray-400">Order: {deckIdx + 1}</span>
+                                         <span className="text-[10px] text-gray-400">順序: {deckIdx + 1}</span>
                                          <div className="flex gap-1">
                                              <button onClick={() => moveOrder(i, 'up')} className="text-xs bg-gray-700 w-5 h-5 rounded">▲</button>
                                              <button onClick={() => moveOrder(i, 'down')} className="text-xs bg-gray-700 w-5 h-5 rounded">▼</button>
@@ -590,7 +620,7 @@ export const IndigoDeckStrategyModal: React.FC<ChoiceModalProps & { cards: CardT
                          );
                     })}
                 </div>
-                <button onClick={() => onResolve({ actions, deckOrder })} className="bg-indigo-700 hover:bg-indigo-600 text-white px-8 py-3 rounded font-bold text-lg">Confirm Strategy</button>
+                <button onClick={() => onResolve({ actions, deckOrder })} className="bg-indigo-700 hover:bg-indigo-600 text-white px-8 py-3 rounded font-bold text-lg">戦略決定</button>
              </div>
         </div>
     );
@@ -615,30 +645,30 @@ export const BurialPaymentModal: React.FC<BurialPaymentModalProps> = ({ title, d
              <div className="bg-gray-900 border-2 border-stone-500 rounded-lg max-w-lg w-full p-6 text-center">
                 <h3 className="text-2xl font-cinzel text-stone-300 mb-4">{title}</h3>
                 <p className="text-gray-300 mb-2">{description}</p>
-                <div className="text-sm text-red-400 mb-6 font-bold">Current Blood Pool: {poolSize}</div>
+                <div className="text-sm text-red-400 mb-6 font-bold">現在のブラッドプール: {poolSize}</div>
 
                 {costType === 'fixed' ? (
                     <div className="flex flex-col gap-4 items-center">
-                        <p className="text-xl">Cost: <span className="text-red-500 font-bold">{costAmount} Blood</span></p>
+                        <p className="text-xl">コスト: <span className="text-red-500 font-bold">{costAmount} 血</span></p>
                         <div className="flex gap-4 mt-4">
                             <button 
                                 onClick={() => onResolve({ paid: true, amount: costAmount })}
                                 disabled={!canPayFixed}
                                 className={`px-6 py-3 rounded font-bold ${canPayFixed ? 'bg-red-800 hover:bg-red-700 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
                             >
-                                Pay & Activate
+                                支払い & 発動
                             </button>
                             <button 
                                 onClick={() => onResolve({ paid: false, amount: 0 })}
                                 className="px-6 py-3 rounded border border-gray-600 text-gray-300 hover:bg-gray-800"
                             >
-                                Cancel
+                                キャンセル
                             </button>
                         </div>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-4 items-center w-full">
-                        <p className="text-xl mb-2">Pay <span className="text-red-500 font-bold">{variableCost}</span> Blood (Max: {maxVariable})</p>
+                        <p className="text-xl mb-2"><span className="text-red-500 font-bold">{variableCost}</span> 血を支払う (最大: {maxVariable})</p>
                         <input 
                             type="range" 
                             min="0" 
@@ -658,13 +688,13 @@ export const BurialPaymentModal: React.FC<BurialPaymentModalProps> = ({ title, d
                                 disabled={variableCost === 0}
                                 className={`px-6 py-3 rounded font-bold ${variableCost > 0 ? 'bg-stone-700 hover:bg-stone-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
                             >
-                                Pay {variableCost}
+                                {variableCost} 支払い
                             </button>
                             <button 
                                 onClick={() => onResolve({ paid: false, amount: 0 })}
                                 className="px-6 py-3 rounded border border-gray-600 text-gray-300 hover:bg-gray-800"
                             >
-                                Cancel
+                                キャンセル
                             </button>
                         </div>
                     </div>
@@ -711,7 +741,7 @@ export const FieldSelectionModal: React.FC<FieldSelectionModalProps> = ({
                 <h3 className="text-2xl font-cinzel text-pink-400 mb-2">{title}</h3>
                 <p className="text-gray-300 mb-2">{description}</p>
                 <p className="text-sm text-pink-300 mb-6">
-                    Selected: {selectedIds.length} 
+                    選択中: {selectedIds.length} 
                     {maxSelect < 99 && ` / ${maxSelect}`}
                 </p>
                 
@@ -745,14 +775,14 @@ export const FieldSelectionModal: React.FC<FieldSelectionModalProps> = ({
                         disabled={!isValid}
                         className={`px-8 py-3 rounded font-bold text-lg ${isValid ? 'bg-pink-700 hover:bg-pink-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
                     >
-                        Enhance Selected ({selectedIds.length})
+                        強化を実行 ({selectedIds.length})
                     </button>
                     {/* 詰み防止用ボタン */}
                     <button 
                         onClick={() => onResolve({ selectedIds: [] })} 
                         className="px-6 py-3 rounded border border-gray-600 text-gray-400 hover:text-white hover:bg-gray-800"
                     >
-                        Cancel / Skip
+                        キャンセル / スキップ
                     </button>
                 </div>
              </div>

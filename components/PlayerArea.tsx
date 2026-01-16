@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { PlayerState, RegaliaCard, Phase } from '../types';
+import { PlayerState, RegaliaCard, Phase, Card as CardType } from '../types';
 import { Card } from './Card';
 import { Zone } from './Zone';
 import { CRAFT_RECIPES } from '../constants/index';
-import { RegaliaModal, CraftModal, CardListModal, DeckListModal } from './GameModals';
+import { RegaliaModal, CraftModal, CardListModal, DeckListModal, CardDetailModal } from './GameModals';
+import { PlayEffect } from './PlayEffect';
 
 interface PlayerAreaProps {
   player: PlayerState;
@@ -35,6 +36,9 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [showCircuitModal, setShowCircuitModal] = useState(false);
   const [showDeckModal, setShowDeckModal] = useState(false);
+  
+  // フィールドカード詳細表示用
+  const [viewingCard, setViewingCard] = useState<CardType | null>(null);
 
   // 神器クリック時の処理
   const handleRegaliaClick = () => {
@@ -57,7 +61,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
   // 1. アイデンティティゾーン（左端：神器と必殺技）
   const IdentityZone = (
       <div className="w-24 md:w-32 flex flex-col gap-2 p-1">
-          <Zone title="Regalia" className="h-1/2 flex items-center justify-center bg-black/40 border-red-900/50">
+          <Zone title="神器" className="h-1/2 flex items-center justify-center bg-black/40 border-red-900/50">
              {player.regalia && (
                 <div className={`transition-transform duration-500 ${player.regalia.isTapped ? 'rotate-90 opacity-75' : ''}`}>
                     <Card 
@@ -74,7 +78,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                 </div>
              )}
           </Zone>
-          <Zone title="Blood Recall" className="h-1/2 flex items-center justify-center bg-black/40">
+          <Zone title="必殺技" className="h-1/2 flex items-center justify-center bg-black/40">
              {player.bloodRecall ? (
                  isOpponent ? (
                      <div className="w-24 h-36 bg-red-950 border-2 border-red-800 rounded flex items-center justify-center shadow-lg">
@@ -88,7 +92,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                                  {player.bloodRecall.description}
                              </div>
                              <div className="flex justify-between text-[8px] font-bold text-red-300">
-                                 <span>Cost: {player.bloodRecall.cost}</span>
+                                 <span>コスト: {player.bloodRecall.cost}</span>
                                  <span>{player.bloodRecall.timing}</span>
                              </div>
                          </div>
@@ -99,10 +103,10 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                                     onClick={onActivateBloodRecall}
                                     className="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded font-bold"
                                 >
-                                    ACTIVATE
+                                    発動
                                 </button>
                              ) : (
-                                <span className="text-xs text-gray-500">Need {player.bloodRecall.cost} Circuit</span>
+                                <span className="text-xs text-gray-500">血廻 {player.bloodRecall.cost} 必要</span>
                              )}
                          </div>
                     </div>
@@ -119,7 +123,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
       <div className="flex-1 flex flex-col p-1 gap-1 w-full max-w-4xl mx-auto px-4">
           {/* 上半分: フィールド */}
           <div className={`flex-1 flex flex-col ${isOpponent ? 'order-2' : 'order-1'}`}>
-               <Zone title={isOpponent ? "Opponent Field" : "Your Field"} className="flex-1 bg-black/20 flex items-center justify-center border-red-500/20 overflow-hidden min-h-[160px]">
+               <Zone title={isOpponent ? "相手の場" : "自分の場"} className="flex-1 bg-black/20 flex items-center justify-center border-red-500/20 overflow-hidden min-h-[160px]">
                     <div className="flex items-center justify-center w-full px-2 transition-all">
                         {player.field.map((c, i) => {
                             const count = player.field.length;
@@ -136,7 +140,18 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
 
                             return (
                                 <div key={c.id} className="transition-all duration-300 relative transform" style={{ ...marginStyle, zIndex: i }}>
-                                    <Card card={c} size="md" className={animClass} />
+                                    <Card 
+                                        card={c} 
+                                        size="md" 
+                                        className={animClass}
+                                        onClick={() => setViewingCard(c)} // フィールドカードクリックで詳細表示
+                                    />
+                                    {/* Play Effect Overlay */}
+                                    {phase === Phase.Main && (
+                                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                                            <PlayEffect type={c.type} />
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
@@ -147,7 +162,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
           {/* 下半分: ブラッドプール & 血廻 (横並び) */}
           <div className={`h-28 flex gap-2 ${isOpponent ? 'order-1' : 'order-2'}`}>
               <div className="flex-1">
-                  <Zone title="Blood Pool" count={player.bloodPool.length} className="h-full bg-red-950/10 border-red-900/30 flex items-center justify-start">
+                  <Zone title="ブラッドプール" count={player.bloodPool.length} className="h-full bg-red-950/10 border-red-900/30 flex items-center justify-start">
                       <div className="flex -space-x-8 px-4 overflow-x-auto w-full custom-scrollbar py-2 items-center">
                           {player.bloodPool.map(c => (
                               <Card key={c.id} card={c} size="sm" isFaceDown={false} className="animate-fade-in" />
@@ -156,7 +171,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                   </Zone>
               </div>
               <div className="w-32 md:w-48 border-l border-red-900/30 cursor-pointer hover:bg-purple-900/10 transition-colors" onClick={() => setShowCircuitModal(true)}>
-                  <Zone title="Blood Circuit (Click)" count={player.bloodCircuit.length} className="h-full bg-purple-900/20 border-purple-500/30 flex items-center justify-center">
+                  <Zone title="血廻 (確認)" count={player.bloodCircuit.length} className="h-full bg-purple-900/20 border-purple-500/30 flex items-center justify-center">
                       <div className="relative">
                           {player.bloodCircuit.map((c, i) => (
                               <div key={c.id} className="absolute top-0 left-0" style={{ transform: `translate(${i * 2}px, ${i * -2}px)` }}>
@@ -164,7 +179,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                               </div>
                           ))}
                           {player.bloodCircuit.length === 0 && (
-                              <span className="text-xs text-purple-500/50">Empty</span>
+                              <span className="text-xs text-purple-500/50">なし</span>
                           )}
                           {player.bloodCircuit.length > 0 && (
                               <div className="relative" style={{ opacity: 0 }}>
@@ -181,16 +196,16 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
   // 3. ライブラリゾーン（右端：捨て札、デッキ）
   const LibraryZone = (
       <div className="w-24 md:w-32 flex flex-col gap-2 p-1">
-          <Zone title="Discard" count={player.discard.length} className="h-1/2 flex items-center justify-center bg-black/40 cursor-pointer hover:bg-black/60 transition-colors">
+          <Zone title="捨て札" count={player.discard.length} className="h-1/2 flex items-center justify-center bg-black/40 cursor-pointer hover:bg-black/60 transition-colors">
               <div onClick={() => setShowDiscardModal(true)} className="w-full h-full flex items-center justify-center">
                   {player.discard.length > 0 ? (
                       <Card card={player.discard[player.discard.length - 1]} size="sm" />
                   ) : (
-                      <div className="text-xs text-gray-600">Empty</div>
+                      <div className="text-xs text-gray-600">なし</div>
                   )}
               </div>
           </Zone>
-          <Zone title="Deck (Click)" className="h-1/2 flex items-center justify-center bg-black/40 relative group cursor-pointer hover:bg-black/60 transition-colors">
+          <Zone title="山札 (確認)" className="h-1/2 flex items-center justify-center bg-black/40 relative group cursor-pointer hover:bg-black/60 transition-colors">
                <div onClick={() => !isOpponent && setShowDeckModal(true)} className="w-full h-full flex items-center justify-center">
                    {player.deck.length > 0 ? (
                        <div className="w-16 h-24 bg-red-900 rounded border-2 border-red-700 shadow-md flex items-center justify-center">
@@ -202,12 +217,12 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                    {/* Total枚数表示 */}
                    <div className="absolute -bottom-6 w-full text-center pointer-events-none">
                        <span className="text-xs text-gray-400 font-bold bg-black/80 px-2 py-0.5 rounded border border-gray-700">
-                           Total: {totalCards}
+                           合計: {totalCards}
                        </span>
                    </div>
                    {!isOpponent && (
                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="bg-black/80 text-[10px] px-2 py-1 rounded border border-gray-600">View</span>
+                            <span className="bg-black/80 text-[10px] px-2 py-1 rounded border border-gray-600">見る</span>
                        </div>
                    )}
                </div>
@@ -255,7 +270,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                     : 'bg-gray-800 text-gray-500 border-gray-600 cursor-not-allowed opacity-70'}
               `}
           >
-              <span className="text-lg">✦</span> Enhance
+              <span className="text-lg">✦</span> 強化 (Craft)
               {CRAFT_RECIPES.some(r => r.inputMatcher(player.hand) !== null) && player.remainingActions > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-3 w-3">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -343,7 +358,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
 
         {showDiscardModal && (
             <CardListModal 
-                title="Discard Pile"
+                title="捨て札"
                 cards={player.discard}
                 colorTheme="gray"
                 onClose={() => setShowDiscardModal(false)}
@@ -352,7 +367,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
 
         {showCircuitModal && (
             <CardListModal 
-                title="Blood Circuit"
+                title="血廻 (Blood Circuit)"
                 cards={player.bloodCircuit}
                 colorTheme="purple"
                 onClose={() => setShowCircuitModal(false)}
@@ -361,9 +376,17 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
 
         {showDeckModal && !isOpponent && (
             <DeckListModal 
-                title="Remaining Deck"
+                title="山札 (残り)"
                 cards={player.deck}
                 onClose={() => setShowDeckModal(false)}
+            />
+        )}
+
+        {/* フィールドカード詳細モーダル */}
+        {viewingCard && (
+            <CardDetailModal 
+                card={viewingCard}
+                onClose={() => setViewingCard(null)}
             />
         )}
     </div>
