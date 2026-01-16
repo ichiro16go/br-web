@@ -8,14 +8,14 @@ import { CRAFT_RECIPES } from '../constants/index';
 // ----------------------------------------------------------------------
 export const CardDetailModal: React.FC<{ card: CardType; onClose: () => void }> = ({ card, onClose }) => {
     return (
-        <div className="absolute inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-             <div className="bg-gray-900 border-2 border-gray-600 rounded-lg max-w-sm w-full p-6 flex flex-col items-center shadow-2xl relative" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+             <div className="bg-gray-900 border-2 border-gray-600 rounded-lg max-w-sm w-full p-4 md:p-6 flex flex-col items-center shadow-2xl relative" onClick={e => e.stopPropagation()}>
                 <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={onClose}>✕</button>
-                <h3 className="text-xl font-cinzel text-gray-200 mb-4 border-b border-gray-700 pb-2 w-full text-center">
+                <h3 className="text-lg md:text-xl font-cinzel text-gray-200 mb-4 border-b border-gray-700 pb-2 w-full text-center">
                     {card.name}
                 </h3>
                 
-                <div className="mb-6 transform scale-110">
+                <div className="mb-4 md:mb-6 transform scale-100 md:scale-110">
                     <Card card={card} size="md" />
                 </div>
 
@@ -24,7 +24,7 @@ export const CardDetailModal: React.FC<{ card: CardType; onClose: () => void }> 
                         <span>Type: {card.type}</span>
                         <span>Cost: {card.cost} / Atk: {card.attack}</span>
                     </div>
-                    <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-xs md:text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
                         {card.description}
                     </p>
                 </div>
@@ -50,58 +50,60 @@ export const RegaliaModal: React.FC<RegaliaModalProps> = ({ regalia, player, isC
     
     // ステータスブロックのサブコンポーネント
     const StatsBlock = ({ title, stats, active }: { title: string, stats: RegaliaStats, active: boolean }) => (
-        <div className={`p-3 rounded border transition-all ${active ? 'bg-red-900/30 border-red-500 shadow-lg' : 'bg-black/40 border-gray-700 opacity-60'}`}>
-            <h4 className={`text-sm font-bold uppercase mb-2 ${active ? 'text-red-400' : 'text-gray-500'}`}>{title}</h4>
-            <div className="grid grid-cols-3 gap-2 text-center mb-3">
+        <div className={`p-2 md:p-3 rounded border transition-all ${active ? 'bg-red-900/30 border-red-500 shadow-lg' : 'bg-black/40 border-gray-700 opacity-60'}`}>
+            <h4 className={`text-xs md:text-sm font-bold uppercase mb-1 md:mb-2 ${active ? 'text-red-400' : 'text-gray-500'}`}>{title}</h4>
+            <div className="grid grid-cols-3 gap-1 md:gap-2 text-center mb-1 md:mb-3">
                 <div>
-                    <div className="text-[10px] text-gray-500 uppercase">手札</div>
-                    <div className={`text-lg font-bold ${active ? 'text-blue-300' : 'text-gray-400'}`}>{stats.handSize}</div>
+                    <div className="text-[8px] md:text-[10px] text-gray-500 uppercase">手札</div>
+                    <div className={`text-sm md:text-lg font-bold ${active ? 'text-blue-300' : 'text-gray-400'}`}>{stats.handSize}</div>
                 </div>
                 <div>
-                    <div className="text-[10px] text-gray-500 uppercase">自傷</div>
-                    <div className={`text-lg font-bold ${active ? 'text-red-300' : 'text-gray-400'}`}>{stats.selfHarmCost}</div>
+                    <div className="text-[8px] md:text-[10px] text-gray-500 uppercase">自傷</div>
+                    <div className={`text-sm md:text-lg font-bold ${active ? 'text-red-300' : 'text-gray-400'}`}>{stats.selfHarmCost}</div>
                 </div>
                 <div>
-                    <div className="text-[10px] text-gray-500 uppercase">行動</div>
-                    <div className={`text-lg font-bold ${active ? 'text-purple-300' : 'text-gray-400'}`}>{stats.bloodPact}</div>
+                    <div className="text-[8px] md:text-[10px] text-gray-500 uppercase">行動</div>
+                    <div className={`text-sm md:text-lg font-bold ${active ? 'text-purple-300' : 'text-gray-400'}`}>{stats.bloodPact}</div>
                 </div>
             </div>
-            <p className={`text-xs ${active ? 'text-gray-200' : 'text-gray-500'}`}>{stats.selfHarmEffectDesc}</p>
+            <p className={`text-[10px] md:text-xs leading-tight ${active ? 'text-gray-200' : 'text-gray-500'}`}>{stats.selfHarmEffectDesc}</p>
         </div>
     );
 
     const currentStats = isAwakened ? regalia.awakened : regalia.base;
 
     return (
-        <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-            <div className="bg-gray-900 border-2 border-red-800 rounded-lg max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-2 md:p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-gray-900 border-2 border-red-800 rounded-lg max-w-2xl w-full p-4 md:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
                 <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={onClose}>✕</button>
-                <h3 className="text-2xl font-cinzel text-red-500 mb-1 border-b border-red-900 pb-2 flex justify-between items-end">
+                <h3 className="text-lg md:text-2xl font-cinzel text-red-500 mb-1 border-b border-red-900 pb-2 flex justify-between items-end">
                     <span>{regalia.name}</span>
-                    <span className="text-sm text-gray-500 font-sans">Year: {regalia.year}</span>
+                    <span className="text-xs md:text-sm text-gray-500 font-sans">Year: {regalia.year}</span>
                 </h3>
-                <p className="text-gray-400 italic mb-6 text-sm">{regalia.description}</p>
+                <p className="text-gray-400 italic mb-4 md:mb-6 text-xs md:text-sm">{regalia.description}</p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <StatsBlock title="通常形態 (Normal)" stats={regalia.base} active={!isAwakened} />
-                    <StatsBlock title="覚醒形態 (Life <= 10)" stats={regalia.awakened} active={isAwakened} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-6">
+                    <StatsBlock title="通常 (Normal)" stats={regalia.base} active={!isAwakened} />
+                    <StatsBlock title="覚醒 (Awakened)" stats={regalia.awakened} active={isAwakened} />
                 </div>
 
-                <div className="flex justify-end gap-3 items-center">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 items-center">
                     {!isAwakened && <span className="text-xs text-red-500 mr-auto font-bold animate-pulse">Life 10以下で覚醒</span>}
                     {isAwakened && <span className="text-xs text-red-500 mr-auto font-bold">覚醒済み (Awakened)</span>}
 
-                    <button className="px-4 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-800" onClick={onClose}>閉じる</button>
-                    {isCurrentUser && !player.regalia?.isTapped && (
-                        <button 
-                            className={`px-6 py-2 rounded font-bold shadow-lg flex flex-col items-center ${player.lifeCards.length >= currentStats.selfHarmCost ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
-                            onClick={onSelfHarm}
-                            disabled={player.lifeCards.length < currentStats.selfHarmCost}
-                        >
-                            <span>自傷して効果発動</span>
-                            {player.lifeCards.length < currentStats.selfHarmCost && <span className="text-[10px] font-normal">(ライフ不足)</span>}
-                        </button>
-                    )}
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        <button className="flex-1 sm:flex-none px-4 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs md:text-sm" onClick={onClose}>閉じる</button>
+                        {isCurrentUser && !player.regalia?.isTapped && (
+                            <button 
+                                className={`flex-1 sm:flex-none px-4 md:px-6 py-2 rounded font-bold shadow-lg flex flex-col items-center justify-center ${player.lifeCards.length >= currentStats.selfHarmCost ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                                onClick={onSelfHarm}
+                                disabled={player.lifeCards.length < currentStats.selfHarmCost}
+                            >
+                                <span className="text-xs md:text-sm">自傷して効果発動</span>
+                                {player.lifeCards.length < currentStats.selfHarmCost && <span className="text-[9px] md:text-[10px] font-normal">(ライフ不足)</span>}
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -129,18 +131,18 @@ export const CraftModal: React.FC<CraftModalProps> = ({ player, onClose, onCraft
     });
 
     return (
-        <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-            <div className="bg-gray-900 border-2 border-purple-800 rounded-lg max-w-2xl w-full p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto custom-scrollbar pb-32" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-2 md:p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-gray-900 border-2 border-purple-800 rounded-lg max-w-2xl w-full p-4 md:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar pb-24 md:pb-32" onClick={e => e.stopPropagation()}>
                 <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={onClose}>✕</button>
-                <h3 className="text-2xl font-cinzel text-purple-400 mb-6 border-b border-purple-900 pb-2 flex justify-between items-center">
+                <h3 className="text-lg md:text-2xl font-cinzel text-purple-400 mb-4 md:mb-6 border-b border-purple-900 pb-2 flex justify-between items-center">
                     <span>アーツ強化 (Craft)</span>
                     <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500 font-sans">残り行動回数:</span>
+                        <span className="text-xs text-gray-500 font-sans">Act:</span>
                         <span className={`text-lg font-bold ${player.remainingActions > 0 ? 'text-white' : 'text-red-500'}`}>{player.remainingActions}</span>
                     </div>
                 </h3>
                 
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                     {sortedRecipes.map(recipe => {
                         const matchIds = recipe.inputMatcher(player.hand);
                         const hasAction = player.remainingActions > 0;
@@ -150,25 +152,25 @@ export const CraftModal: React.FC<CraftModalProps> = ({ player, onClose, onCraft
 
                         return (
                             <div key={recipe.id} className={`
-                                p-4 rounded border flex gap-4 items-center transition-colors
+                                p-3 md:p-4 rounded border flex flex-col md:flex-row gap-3 md:gap-4 items-start md:items-center transition-colors
                                 ${canCraft 
                                     ? (isSpecial ? 'bg-pink-900/20 border-pink-500' : 'bg-purple-900/20 border-purple-500') 
                                     : 'bg-gray-800/50 border-gray-700 opacity-60'}
                             `}>
-                                <div className="flex-1">
+                                <div className="flex-1 w-full">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className={`font-bold text-lg ${isSpecial ? 'text-pink-300' : 'text-gray-200'}`}>
+                                        <span className={`font-bold text-sm md:text-lg ${isSpecial ? 'text-pink-300' : 'text-gray-200'}`}>
                                             {recipe.name}
                                         </span>
-                                        {canCraft && <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">可能</span>}
-                                        {!hasAction && matchIds !== null && <span className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">行動力不足</span>}
+                                        {canCraft && <span className="bg-green-600 text-white text-[9px] md:text-[10px] px-2 py-0.5 rounded font-bold shrink-0">可能</span>}
+                                        {!hasAction && matchIds !== null && <span className="bg-red-600 text-white text-[9px] md:text-[10px] px-2 py-0.5 rounded font-bold shrink-0">Act不足</span>}
                                     </div>
-                                    <p className="text-sm text-gray-400 mb-2">{recipe.description}</p>
-                                    <div className={`text-xs ${isSpecial ? 'text-pink-400' : 'text-purple-300'}`}>
+                                    <p className="text-xs md:text-sm text-gray-400 mb-2">{recipe.description}</p>
+                                    <div className={`text-[10px] md:text-xs ${isSpecial ? 'text-pink-400' : 'text-purple-300'}`}>
                                         生成: {resultPreview.name} {resultPreview.level > 0 && `(Lv.${resultPreview.level})`}
                                     </div>
                                 </div>
-                                <div>
+                                <div className="w-full md:w-auto">
                                     <button 
                                         onClick={() => {
                                             if (canCraft && matchIds) {
@@ -177,7 +179,7 @@ export const CraftModal: React.FC<CraftModalProps> = ({ player, onClose, onCraft
                                             }
                                         }}
                                         disabled={!canCraft}
-                                        className={`px-4 py-2 rounded font-bold shadow-lg min-w-[100px] ${
+                                        className={`w-full md:w-auto px-4 py-2 rounded font-bold shadow-lg min-w-[100px] text-sm md:text-base ${
                                             canCraft 
                                             ? (isSpecial ? 'bg-pink-600 hover:bg-pink-500 text-white' : 'bg-purple-600 hover:bg-purple-500 text-white')
                                             : 'bg-gray-700 text-gray-500 cursor-not-allowed'
@@ -212,12 +214,12 @@ export const CardListModal: React.FC<CardListModalProps> = ({ title, cards, colo
         : { border: 'border-gray-700', text: 'text-gray-400', subText: 'text-gray-600' };
 
     return (
-        <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-            <div className={`bg-gray-900 border-2 ${themeClasses.border} rounded-lg max-w-3xl w-full p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto custom-scrollbar`} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-2 md:p-4 animate-fade-in" onClick={onClose}>
+            <div className={`bg-gray-900 border-2 ${themeClasses.border} rounded-lg max-w-3xl w-full p-4 md:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar`} onClick={e => e.stopPropagation()}>
                 <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={onClose}>✕</button>
-                <h3 className={`text-2xl font-cinzel ${themeClasses.text} mb-6 border-b ${themeClasses.border} pb-2 flex justify-between items-center`}>
+                <h3 className={`text-lg md:text-2xl font-cinzel ${themeClasses.text} mb-4 md:mb-6 border-b ${themeClasses.border} pb-2 flex justify-between items-center`}>
                     <span>{title}</span>
-                    <span className={`text-sm font-sans ${themeClasses.subText}`}>枚数: {cards.length}</span>
+                    <span className={`text-xs md:text-sm font-sans ${themeClasses.subText}`}>枚数: {cards.length}</span>
                 </h3>
                 
                 {cards.length === 0 ? (
@@ -254,14 +256,14 @@ export const DeckListModal: React.FC<DeckListModalProps> = ({ title, cards, onCl
     });
 
     return (
-        <div className="absolute inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
-            <div className="bg-gray-900 border-2 border-red-800 rounded-lg max-w-3xl w-full p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-2 md:p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-gray-900 border-2 border-red-800 rounded-lg max-w-3xl w-full p-4 md:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
                 <button className="absolute top-2 right-2 text-gray-500 hover:text-white" onClick={onClose}>✕</button>
-                <h3 className="text-2xl font-cinzel text-red-400 mb-2 border-b border-red-800 pb-2 flex justify-between items-center">
+                <h3 className="text-lg md:text-2xl font-cinzel text-red-400 mb-2 border-b border-red-800 pb-2 flex justify-between items-center">
                     <span>{title}</span>
-                    <span className="text-sm font-sans text-red-300">枚数: {cards.length}</span>
+                    <span className="text-xs md:text-sm font-sans text-red-300">枚数: {cards.length}</span>
                 </h3>
-                <p className="text-xs text-gray-500 mb-6 flex items-center gap-2">
+                <p className="text-[10px] md:text-xs text-gray-500 mb-4 md:mb-6 flex items-center gap-2">
                     <span className="text-yellow-500">⚠</span>
                     <span>カード順は隠されています（種類/名前順で表示）。</span>
                 </p>
@@ -298,10 +300,10 @@ export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]
     const filteredCards = filter ? displayCards.filter(({ card }) => filter(card)) : displayCards;
 
     return (
-        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-gray-900 border-2 border-yellow-600 rounded-lg max-w-2xl w-full p-6 text-center">
-                <h3 className="text-2xl font-cinzel text-yellow-500 mb-2">{title}</h3>
-                <p className="text-gray-400 mb-8">{description}</p>
+        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gray-900 border-2 border-yellow-600 rounded-lg max-w-2xl w-full p-4 md:p-6 text-center max-h-[90vh] overflow-y-auto">
+                <h3 className="text-xl md:text-2xl font-cinzel text-yellow-500 mb-2">{title}</h3>
+                <p className="text-sm md:text-base text-gray-400 mb-6">{description}</p>
                 {filteredCards.length === 0 ? (
                     <div className="text-gray-500 mb-8">選択できるカードがありません。</div>
                 ) : (
@@ -311,7 +313,7 @@ export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]
                                 <Card card={card} size="md" />
                                 <button 
                                     onClick={() => onResolve({ selectedIndex: originalIndex })}
-                                    className="bg-yellow-700 hover:bg-yellow-600 text-white px-4 py-1 rounded font-bold"
+                                    className="bg-yellow-700 hover:bg-yellow-600 text-white px-4 py-1 rounded font-bold text-sm"
                                 >
                                     選択
                                 </button>
@@ -322,7 +324,7 @@ export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]
                  {/* 選択候補がない場合のスキップボタン */}
                  <button 
                     onClick={() => onResolve({ selectedIndex: -1 })} 
-                    className="mt-8 px-6 py-2 border border-gray-600 rounded text-gray-400 hover:text-white hover:border-gray-400"
+                    className="mt-8 px-6 py-2 border border-gray-600 rounded text-gray-400 hover:text-white hover:border-gray-400 text-sm"
                  >
                     キャンセル / スキップ
                  </button>
@@ -334,16 +336,16 @@ export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]
 // 2. 単純な二択モーダル (オボツカグラ覚醒前など)
 export const SimpleChoiceModal: React.FC<ChoiceModalProps & { options: { label: string, value: string }[] }> = ({ title, description, options, onResolve }) => {
     return (
-        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 animate-fade-in">
              <div className="bg-gray-900 border-2 border-blue-600 rounded-lg max-w-lg w-full p-6 text-center">
-                <h3 className="text-2xl font-cinzel text-blue-400 mb-4">{title}</h3>
-                <p className="text-gray-300 mb-8">{description}</p>
-                <div className="flex justify-center gap-6">
+                <h3 className="text-xl md:text-2xl font-cinzel text-blue-400 mb-4">{title}</h3>
+                <p className="text-sm md:text-base text-gray-300 mb-8">{description}</p>
+                <div className="flex flex-col md:flex-row justify-center gap-4 md:gap-6">
                     {options.map((opt) => (
                         <button 
                             key={opt.value}
                             onClick={() => onResolve({ choice: opt.value })}
-                            className="bg-blue-800 hover:bg-blue-700 border border-blue-500 text-white px-6 py-4 rounded-lg font-bold text-lg min-w-[120px]"
+                            className="bg-blue-800 hover:bg-blue-700 border border-blue-500 text-white px-6 py-4 rounded-lg font-bold text-base md:text-lg w-full md:min-w-[120px]"
                         >
                             {opt.label}
                         </button>
@@ -384,26 +386,26 @@ export const HandSelectionModal: React.FC<HandSelectionModalProps> = ({
     const isValid = selectedIds.length >= minSelect && selectedIds.length <= maxSelect;
 
     return (
-        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
-             <div className="bg-gray-900 border-2 border-blue-600 rounded-lg max-w-4xl w-full p-6 text-center max-h-[90vh] overflow-y-auto">
-                <h3 className="text-2xl font-cinzel text-blue-400 mb-2">{title}</h3>
-                <p className="text-gray-300 mb-2">{description}</p>
-                <p className="text-sm text-blue-300 mb-6">
+        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-2 md:p-4 animate-fade-in">
+             <div className="bg-gray-900 border-2 border-blue-600 rounded-lg max-w-4xl w-full p-4 md:p-6 text-center max-h-[90vh] overflow-y-auto">
+                <h3 className="text-xl md:text-2xl font-cinzel text-blue-400 mb-2">{title}</h3>
+                <p className="text-xs md:text-base text-gray-300 mb-2">{description}</p>
+                <p className="text-xs text-blue-300 mb-4 md:mb-6">
                     選択中: {selectedIds.length} 
                     {maxSelect < 99 && ` / ${maxSelect}`}
                     {minSelect > 0 && ` (最低: ${minSelect})`}
                 </p>
                 
-                <div className="flex flex-wrap justify-center gap-3 mb-8">
+                <div className="flex flex-wrap justify-center gap-2 md:gap-3 mb-6 md:mb-8">
                     {selectableCards.map((c) => {
                         const isSelected = selectedIds.includes(c.id);
                         return (
                             <div key={c.id} className="relative cursor-pointer" onClick={() => toggleSelect(c.id)}>
-                                <div className={`transition-all ${isSelected ? 'transform -translate-y-4 shadow-[0_0_15px_rgba(59,130,246,0.8)]' : 'opacity-80'}`}>
+                                <div className={`transition-all transform scale-90 md:scale-100 ${isSelected ? '-translate-y-2 md:-translate-y-4 shadow-[0_0_15px_rgba(59,130,246,0.8)]' : 'opacity-80'}`}>
                                      <Card card={c} size="md" />
                                 </div>
                                 {isSelected && (
-                                    <div className="absolute -top-2 -right-2 bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold border border-white">
+                                    <div className="absolute top-0 right-0 bg-blue-600 text-white w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center font-bold border border-white text-xs">
                                         ✓
                                     </div>
                                 )}
@@ -412,24 +414,24 @@ export const HandSelectionModal: React.FC<HandSelectionModalProps> = ({
                     })}
                     {/* 選択不可カードはグレーアウトして表示 */}
                     {unselectableCards.map((c) => (
-                        <div key={c.id} className="relative opacity-30 grayscale cursor-not-allowed">
+                        <div key={c.id} className="relative opacity-30 grayscale cursor-not-allowed transform scale-90 md:scale-100">
                              <Card card={c} size="md" />
                         </div>
                     ))}
                 </div>
 
-                <div className="flex justify-center gap-4">
+                <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4">
                     <button 
                         onClick={() => onResolve({ selectedIds })}
                         disabled={!isValid}
-                        className={`px-8 py-3 rounded font-bold text-lg ${isValid ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                        className={`px-6 md:px-8 py-2 md:py-3 rounded font-bold text-sm md:text-lg ${isValid ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
                     >
                         決定 ({selectedIds.length})
                     </button>
                     {/* 詰み防止用のCancelボタン */}
                     <button 
                         onClick={() => onResolve({ selectedIds: [] })}
-                        className="px-6 py-3 rounded border border-gray-600 text-gray-400 hover:text-white hover:bg-gray-800"
+                        className="px-6 py-2 md:py-3 rounded border border-gray-600 text-gray-400 hover:text-white hover:bg-gray-800 text-sm md:text-base"
                     >
                         キャンセル / スキップ
                     </button>
@@ -442,10 +444,10 @@ export const HandSelectionModal: React.FC<HandSelectionModalProps> = ({
 // 4. 血廻カード選択モーダル (機翼の藍など)
 export const CircuitSelectionModal: React.FC<ChoiceModalProps & { circuit: CardType[] }> = ({ title, description, circuit, onResolve }) => {
     return (
-        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-gray-900 border-2 border-purple-600 rounded-lg max-w-3xl w-full p-6 text-center max-h-[90vh] overflow-y-auto">
-                <h3 className="text-2xl font-cinzel text-purple-400 mb-2">{title}</h3>
-                <p className="text-gray-300 mb-8">{description}</p>
+        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gray-900 border-2 border-purple-600 rounded-lg max-w-3xl w-full p-4 md:p-6 text-center max-h-[90vh] overflow-y-auto">
+                <h3 className="text-xl md:text-2xl font-cinzel text-purple-400 mb-2">{title}</h3>
+                <p className="text-sm md:text-base text-gray-300 mb-6 md:mb-8">{description}</p>
                 
                 {circuit.length === 0 ? (
                      <div className="text-gray-500 mb-8">血廻にカードがありません。</div>
@@ -456,7 +458,7 @@ export const CircuitSelectionModal: React.FC<ChoiceModalProps & { circuit: CardT
                                 <Card card={c} size="md" />
                                 <button 
                                     onClick={() => onResolve({ selectedIndex: i })}
-                                    className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-1 rounded font-bold"
+                                    className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-1 rounded font-bold text-xs"
                                 >
                                     選択
                                 </button>
@@ -465,7 +467,7 @@ export const CircuitSelectionModal: React.FC<ChoiceModalProps & { circuit: CardT
                     </div>
                 )}
                  {/* 詰み防止用ボタン */}
-                 <button onClick={() => onResolve({ selectedIndex: -1 })} className="bg-gray-700 px-6 py-2 rounded text-gray-300 hover:bg-gray-600">閉じる / スキップ</button>
+                 <button onClick={() => onResolve({ selectedIndex: -1 })} className="bg-gray-700 px-6 py-2 rounded text-gray-300 hover:bg-gray-600 text-sm">閉じる / スキップ</button>
             </div>
         </div>
     );
@@ -502,15 +504,15 @@ export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: Ca
     };
 
     return (
-        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
-             <div className="bg-gray-900 border-2 border-blue-600 rounded-lg max-w-3xl w-full p-6 text-center">
-                <h3 className="text-2xl font-cinzel text-blue-400 mb-2">{title}</h3>
-                <p className="text-gray-300 mb-6">{description}</p>
+        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-2 md:p-4 animate-fade-in">
+             <div className="bg-gray-900 border-2 border-blue-600 rounded-lg max-w-3xl w-full p-4 md:p-6 text-center max-h-[90vh] overflow-y-auto">
+                <h3 className="text-xl md:text-2xl font-cinzel text-blue-400 mb-2">{title}</h3>
+                <p className="text-sm md:text-base text-gray-300 mb-6">{description}</p>
                 
-                <div className="flex justify-center gap-8 mb-8">
+                <div className="flex flex-col md:flex-row justify-center gap-4 md:gap-8 mb-8">
                     {/* Circuit Zone */}
-                    <div className="border border-purple-500/50 bg-purple-900/20 p-4 rounded min-w-[200px] min-h-[250px]">
-                        <h4 className="text-purple-300 font-bold mb-4 border-b border-purple-500/30 pb-2">血廻へ送る</h4>
+                    <div className="border border-purple-500/50 bg-purple-900/20 p-4 rounded min-w-[150px] md:min-w-[200px] min-h-[200px] md:min-h-[250px]">
+                        <h4 className="text-purple-300 font-bold mb-4 border-b border-purple-500/30 pb-2 text-sm md:text-base">血廻へ送る</h4>
                         <div className="flex flex-col gap-2">
                             {circuitIndices.map(i => (
                                 <div key={i} className="cursor-pointer hover:opacity-80" onClick={() => toggleDestination(i)}>
@@ -522,8 +524,8 @@ export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: Ca
                     </div>
 
                     {/* Deck Top Zone */}
-                    <div className="border border-blue-500/50 bg-blue-900/20 p-4 rounded min-w-[200px] min-h-[250px]">
-                        <h4 className="text-blue-300 font-bold mb-4 border-b border-blue-500/30 pb-2">デッキの上に戻す</h4>
+                    <div className="border border-blue-500/50 bg-blue-900/20 p-4 rounded min-w-[150px] md:min-w-[200px] min-h-[200px] md:min-h-[250px]">
+                        <h4 className="text-blue-300 font-bold mb-4 border-b border-blue-500/30 pb-2 text-sm md:text-base">デッキの上に戻す</h4>
                         <div className="flex flex-col gap-2 items-center">
                             <span className="text-[10px] text-gray-400 mb-1">上 (次に引く)</span>
                             {deckIndices.map((cardIndex, displayIndex) => (
@@ -586,12 +588,12 @@ export const IndigoDeckStrategyModal: React.FC<ChoiceModalProps & { cards: CardT
     const getDeckIndex = (index: number) => deckOrder.indexOf(index);
 
     return (
-        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
-             <div className="bg-gray-900 border-2 border-indigo-600 rounded-lg max-w-4xl w-full p-6 text-center max-h-[90vh] overflow-y-auto">
-                <h3 className="text-2xl font-cinzel text-indigo-400 mb-2">{title}</h3>
-                <p className="text-gray-300 mb-6">{description}</p>
+        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-2 md:p-4 animate-fade-in">
+             <div className="bg-gray-900 border-2 border-indigo-600 rounded-lg max-w-4xl w-full p-4 md:p-6 text-center max-h-[90vh] overflow-y-auto">
+                <h3 className="text-xl md:text-2xl font-cinzel text-indigo-400 mb-2">{title}</h3>
+                <p className="text-sm md:text-base text-gray-300 mb-6">{description}</p>
                 
-                <div className="flex justify-center gap-6 mb-8 flex-wrap">
+                <div className="flex justify-center gap-4 md:gap-6 mb-8 flex-wrap">
                     {cards.map((card, i) => {
                          const isArt = card.type === 'SLASH' || card.type === 'BLOOD';
                          const currentAction = actions[i];
@@ -641,10 +643,10 @@ export const BurialPaymentModal: React.FC<BurialPaymentModalProps> = ({ title, d
     const canPayFixed = costType === 'fixed' && poolSize >= costAmount;
 
     return (
-        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 animate-fade-in">
              <div className="bg-gray-900 border-2 border-stone-500 rounded-lg max-w-lg w-full p-6 text-center">
-                <h3 className="text-2xl font-cinzel text-stone-300 mb-4">{title}</h3>
-                <p className="text-gray-300 mb-2">{description}</p>
+                <h3 className="text-xl md:text-2xl font-cinzel text-stone-300 mb-4">{title}</h3>
+                <p className="text-sm md:text-base text-gray-300 mb-2">{description}</p>
                 <div className="text-sm text-red-400 mb-6 font-bold">現在のブラッドプール: {poolSize}</div>
 
                 {costType === 'fixed' ? (
@@ -736,11 +738,11 @@ export const FieldSelectionModal: React.FC<FieldSelectionModalProps> = ({
     const isValid = selectedIds.length >= minSelect && selectedIds.length <= maxSelect;
 
     return (
-        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
-             <div className="bg-gray-900 border-2 border-pink-500 rounded-lg max-w-4xl w-full p-6 text-center max-h-[90vh] overflow-y-auto">
-                <h3 className="text-2xl font-cinzel text-pink-400 mb-2">{title}</h3>
-                <p className="text-gray-300 mb-2">{description}</p>
-                <p className="text-sm text-pink-300 mb-6">
+        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-2 md:p-4 animate-fade-in">
+             <div className="bg-gray-900 border-2 border-pink-500 rounded-lg max-w-4xl w-full p-4 md:p-6 text-center max-h-[90vh] overflow-y-auto">
+                <h3 className="text-xl md:text-2xl font-cinzel text-pink-400 mb-2">{title}</h3>
+                <p className="text-sm md:text-base text-gray-300 mb-2">{description}</p>
+                <p className="text-xs text-pink-300 mb-6">
                     選択中: {selectedIds.length} 
                     {maxSelect < 99 && ` / ${maxSelect}`}
                 </p>
@@ -750,7 +752,7 @@ export const FieldSelectionModal: React.FC<FieldSelectionModalProps> = ({
                         const isSelected = selectedIds.includes(c.id);
                         return (
                             <div key={c.id} className="relative cursor-pointer" onClick={() => toggleSelect(c.id)}>
-                                <div className={`transition-all ${isSelected ? 'transform -translate-y-4 shadow-[0_0_15px_rgba(236,72,153,0.8)]' : 'opacity-80'}`}>
+                                <div className={`transition-all transform scale-90 md:scale-100 ${isSelected ? '-translate-y-4 shadow-[0_0_15px_rgba(236,72,153,0.8)]' : 'opacity-80'}`}>
                                      <Card card={c} size="md" />
                                 </div>
                                 {isSelected && (
@@ -763,7 +765,7 @@ export const FieldSelectionModal: React.FC<FieldSelectionModalProps> = ({
                     })}
                     {/* 選択不可カードはグレーアウト */}
                     {unselectableCards.map((c) => (
-                        <div key={c.id} className="relative opacity-30 grayscale cursor-not-allowed">
+                        <div key={c.id} className="relative opacity-30 grayscale cursor-not-allowed transform scale-90 md:scale-100">
                              <Card card={c} size="md" />
                         </div>
                     ))}
@@ -773,14 +775,14 @@ export const FieldSelectionModal: React.FC<FieldSelectionModalProps> = ({
                     <button 
                         onClick={() => onResolve({ selectedIds })}
                         disabled={!isValid}
-                        className={`px-8 py-3 rounded font-bold text-lg ${isValid ? 'bg-pink-700 hover:bg-pink-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                        className={`px-6 md:px-8 py-2 md:py-3 rounded font-bold text-sm md:text-lg ${isValid ? 'bg-pink-700 hover:bg-pink-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
                     >
                         強化を実行 ({selectedIds.length})
                     </button>
                     {/* 詰み防止用ボタン */}
                     <button 
                         onClick={() => onResolve({ selectedIds: [] })} 
-                        className="px-6 py-3 rounded border border-gray-600 text-gray-400 hover:text-white hover:bg-gray-800"
+                        className="px-6 py-2 md:py-3 rounded border border-gray-600 text-gray-400 hover:text-white hover:bg-gray-800 text-sm md:text-base"
                     >
                         キャンセル / スキップ
                     </button>

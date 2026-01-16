@@ -1,4 +1,3 @@
-
 import React, { useReducer, useEffect, useState, useRef } from 'react';
 import { gameReducer } from './services/engine';
 import { createPlayer } from './services/gameLogic';
@@ -258,6 +257,7 @@ const App: React.FC = () => {
 
 const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  const [isMarketOpen, setIsMarketOpen] = useState(true);
 
   // ... (useEffect, Handlers 省略... 変更なし)
   useEffect(() => {
@@ -359,14 +359,15 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onClick={handlePass}
                     disabled={!isPlayerTurn}
                     className={`
-                        h-16 w-32 rounded-lg font-cinzel font-bold text-lg transition-all transform active:scale-95 flex flex-col items-center justify-center border-2
+                        h-12 w-24 md:h-16 md:w-32 rounded-lg font-cinzel font-bold transition-all transform active:scale-95 flex flex-col items-center justify-center border-2
+                        text-sm md:text-lg
                         ${isPlayerTurn 
                             ? 'bg-red-900 hover:bg-red-700 text-white border-red-500 shadow-[0_0_20px_rgba(220,38,38,0.4)]' 
                             : 'bg-gray-900 text-gray-600 border-gray-700 cursor-not-allowed'}
                     `}
                   >
                     <span>{isPlayerTurn ? 'END' : 'WAIT'}</span>
-                    <span className="text-xs font-sans font-normal opacity-70">Turn</span>
+                    <span className="text-[10px] md:text-xs font-sans font-normal opacity-70">Turn</span>
                   </button>
               )}
         </div>
@@ -379,13 +380,25 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
 
       </div>
 
-      <div className="w-40 md:w-56 bg-black/80 border-l border-red-900/30 flex flex-col z-20">
-         <Market 
-            recallPiles={state.market.recallPiles} 
-            onRecall={handleRecall} 
-            canRecall={isPlayerTurn && remainingActions > 0} 
-            playerPoolCount={state.players.player.bloodPool.length}
-         />
+      <div className={`transition-all duration-300 ease-in-out relative flex flex-col z-20 ${isMarketOpen ? 'w-28 md:w-56 border-l border-red-900/30 bg-black/80' : 'w-0'}`}>
+         {/* Toggle Button: Positioned higher to avoid overlap */}
+         <button
+            onClick={() => setIsMarketOpen(!isMarketOpen)}
+            className="absolute top-20 -left-6 w-6 h-16 bg-red-950/80 border-y border-l border-red-900/50 rounded-l flex items-center justify-center text-red-200 hover:bg-red-900 z-50 cursor-pointer"
+         >
+             <span className="text-[10px] md:text-xs font-cinzel font-bold flex flex-col items-center gap-1">
+                 {isMarketOpen ? <span>&rsaquo;</span> : <span>&lsaquo;</span>}
+             </span>
+         </button>
+         
+         <div className="w-full h-full overflow-hidden">
+            <Market 
+                recallPiles={state.market.recallPiles} 
+                onRecall={handleRecall} 
+                canRecall={isPlayerTurn && remainingActions > 0} 
+                playerPoolCount={state.players.player.bloodPool.length}
+            />
+         </div>
       </div>
 
       {state.pendingResolution && (
