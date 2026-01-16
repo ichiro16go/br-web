@@ -5,7 +5,7 @@ import { getCardStyles } from '../utils/cardStyles';
 interface CardProps {
   card: CardType;
   onClick?: () => void;
-  size?: 'xs' | 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'lg' | 'lg';
   isFaceDown?: boolean;
   // Regalia専用: 覚醒状態フラグ
   isAwakened?: boolean; 
@@ -17,12 +17,12 @@ interface CardProps {
  * カードコンポーネント
  * カードの種類に応じた見た目をレンダリングする
  */
-export const Card: React.FC<CardProps> = ({ card, onClick, size = 'md', isFaceDown = false, isAwakened = false, className = '', style }) => {
+export const Card: React.FC<CardProps> = ({ card, onClick, size = 'lg', isFaceDown = false, isAwakened = false, className = '', style }) => {
   const sizeClasses = {
     xs: 'w-10 h-14 text-[0.4rem]',
     sm: 'w-16 h-24 text-[0.5rem]',
     md: 'w-24 h-36 text-xs',
-    lg: 'w-32 h-48 text-sm',
+    lg: 'w-24 h-36 text-xs',
   };
 
   // ユーティリティからスタイルを取得

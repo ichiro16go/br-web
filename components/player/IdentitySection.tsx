@@ -19,12 +19,12 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({
   onActivateBloodRecall
 }) => {
   return (
-      <div className="w-20 md:w-28 flex flex-col gap-1 p-1 shrink-0 z-10 justify-center bg-black/20 border-r border-red-900/30">
+      <div className="w-20 lg:w-28 flex flex-col gap-1 p-1 shrink-0 z-10 justify-center bg-black/20 border-r border-red-900/30">
           <Zone 
             title="神器" 
             className={`
                 bg-transparent border-none
-                ${isOpponent ? 'h-full md:h-1/2' : 'h-1/2'}
+                ${isOpponent ? 'h-full lg:h-1/2' : 'h-1/2'}
             `}
             contentClassName="flex items-center justify-center"
           >
@@ -32,7 +32,7 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({
                 <div className={`transition-transform duration-500 ${player.regalia.isTapped ? 'rotate-90 opacity-75' : ''}`}>
                     <Card 
                         card={player.regalia} 
-                        size="md" 
+                        size="lg" 
                         onClick={onRegaliaClick} 
                         isAwakened={player.isRegaliaAwakened}
                         className="scale-75 origin-center"
@@ -46,7 +46,7 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({
              )}
           </Zone>
           
-          <div className={`${isOpponent ? 'hidden md:block' : 'block'} h-1/2 w-full flex items-center justify-center`}>
+          <div className={`${isOpponent ? 'hidden lg:block' : 'block'} h-1/2 w-full flex items-center justify-center`}>
                 {player.bloodRecall ? (
                     isOpponent ? (
                         <div className="w-16 h-24 bg-red-950 border-2 border-red-800 rounded flex items-center justify-center shadow-lg">
@@ -54,7 +54,7 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({
                         </div>
                     ) : (
                         <div className="relative group scale-90">
-                            <div className={`w-16 md:w-20 h-24 md:h-28 border-2 rounded flex flex-col p-1 shadow-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform ${player.isRegaliaAwakened ? 'bg-red-900 border-red-500' : 'bg-gray-900 border-gray-700 opacity-80'}`}>
+                            <div className={`w-16 lg:w-20 h-24 lg:h-28 border-2 rounded flex flex-col p-1 shadow-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform ${player.isRegaliaAwakened ? 'bg-red-900 border-red-500' : 'bg-gray-900 border-gray-700 opacity-80'}`}>
                                 <div className="text-[8px] text-red-200 font-bold border-b border-red-500/50 text-center truncate">{player.bloodRecall.name}</div>
                                 <div className="flex-1 text-[8px] text-gray-200 p-1 flex items-center justify-center leading-tight overflow-hidden text-center">
                                     {player.bloodRecall.description.substring(0, 30)}...

@@ -24,22 +24,22 @@ export const ResourceSection: React.FC<ResourceSectionProps> = ({
   const canCraft = CRAFT_RECIPES.some(r => r.inputMatcher(player.hand) !== null) && player.remainingActions > 0;
 
   return (
-      <div className="w-14 md:w-20 flex flex-col gap-1 py-1 items-center bg-black/40 border-r border-red-900/30 z-20 shrink-0 text-center justify-start overflow-hidden">
+      <div className="w-14 lg:w-20 flex flex-col gap-1 py-1 items-center bg-black/40 border-r border-red-900/30 z-20 shrink-0 text-center justify-start overflow-hidden">
           
           {isCurrentUser && (
               <button 
                 onClick={onCraftClick}
                 disabled={player.remainingActions <= 0}
                 className={`
-                    flex flex-col items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border shadow-lg transition-all mb-1 mt-1 relative shrink-0 z-30
+                    flex flex-col items-center justify-center w-10 h-10 lg:w-12 lg:h-12 rounded-full border shadow-lg transition-all mb-1 mt-1 relative shrink-0 z-30
                     ${player.remainingActions > 0 
                         ? 'bg-purple-900 hover:bg-purple-700 border-purple-500 text-white hover:scale-110' 
                         : 'bg-gray-900 border-gray-700 text-gray-600 cursor-not-allowed'}
                 `}
                 title="Craft"
               >
-                  <span className="text-base md:text-xl">✦</span>
-                  <span className="text-[7px] md:text-[8px] font-bold leading-none">CRAFT</span>
+                  <span className="text-base lg:text-xl">✦</span>
+                  <span className="text-[7px] lg:text-[8px] font-bold leading-none">CRAFT</span>
                   {canCraft && (
                       <span className="absolute top-0 right-0 w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
                   )}
