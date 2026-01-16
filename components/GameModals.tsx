@@ -282,10 +282,13 @@ export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]
                         ))}
                     </div>
                 )}
-                 {/* 選択候補がない場合のスキップボタン等が必要なら追加 */}
-                 {filteredCards.length === 0 && (
-                     <button onClick={() => onResolve({ selectedIndex: -1 })} className="mt-4 text-gray-500 underline">Cancel / Skip</button>
-                 )}
+                 {/* 選択候補がない場合のスキップボタン */}
+                 <button 
+                    onClick={() => onResolve({ selectedIndex: -1 })} 
+                    className="mt-8 px-6 py-2 border border-gray-600 rounded text-gray-400 hover:text-white hover:border-gray-400"
+                 >
+                    Cancel / Skip
+                 </button>
             </div>
         </div>
     );
@@ -379,13 +382,22 @@ export const HandSelectionModal: React.FC<HandSelectionModalProps> = ({
                     ))}
                 </div>
 
-                <button 
-                    onClick={() => onResolve({ selectedIds })}
-                    disabled={!isValid}
-                    className={`px-8 py-3 rounded font-bold text-lg ${isValid ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
-                >
-                    Confirm ({selectedIds.length})
-                </button>
+                <div className="flex justify-center gap-4">
+                    <button 
+                        onClick={() => onResolve({ selectedIds })}
+                        disabled={!isValid}
+                        className={`px-8 py-3 rounded font-bold text-lg ${isValid ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                    >
+                        Confirm ({selectedIds.length})
+                    </button>
+                    {/* 詰み防止用のCancelボタン */}
+                    <button 
+                        onClick={() => onResolve({ selectedIds: [] })}
+                        className="px-6 py-3 rounded border border-gray-600 text-gray-400 hover:text-white hover:bg-gray-800"
+                    >
+                        Cancel / Skip
+                    </button>
+                </div>
              </div>
         </div>
     );
@@ -416,9 +428,8 @@ export const CircuitSelectionModal: React.FC<ChoiceModalProps & { circuit: CardT
                         ))}
                     </div>
                 )}
-                 {circuit.length === 0 && (
-                     <button onClick={() => onResolve({ selectedIndex: -1 })} className="bg-gray-700 px-6 py-2 rounded text-gray-300">Close</button>
-                 )}
+                 {/* 詰み防止用ボタン */}
+                 <button onClick={() => onResolve({ selectedIndex: -1 })} className="bg-gray-700 px-6 py-2 rounded text-gray-300 hover:bg-gray-600">Close / Skip</button>
             </div>
         </div>
     );
@@ -509,22 +520,15 @@ export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: Ca
 // 6. 機翼の藍用デッキ操作モーダル
 // 「デッキ上2枚を見て、1枚アーツ強化/破棄/戻す」
 export const IndigoDeckStrategyModal: React.FC<ChoiceModalProps & { cards: CardType[] }> = ({ title, description, cards, onResolve }) => {
+    // ... (既存のIndigoDeckStrategyModalのコード)
     // 状態: 各カードについて { action: 'upgrade' | 'discard' | 'deck', deckOrder: number }
-    // 簡略化: 
-    // - アーツカードのみ「Upgrade」ボタンを表示。
-    // - 全カードに「Discard」「Deck Top」トグル。
-    // - Deck Topの場合は順序指定。
-    
-    // 選択状態: { [cardIndex]: 'upgrade' | 'discard' | 'deck' }
     const [actions, setActions] = useState< Record<number, 'upgrade' | 'discard' | 'deck'> >(
         Object.fromEntries(cards.map((_, i) => [i, 'deck']))
     );
-    // デッキに戻すカードの順序 (card indices)
     const [deckOrder, setDeckOrder] = useState<number[]>(cards.map((_, i) => i));
 
     const handleActionChange = (index: number, action: 'upgrade' | 'discard' | 'deck') => {
         setActions(prev => ({ ...prev, [index]: action }));
-        
         if (action === 'deck') {
             if (!deckOrder.includes(index)) setDeckOrder([...deckOrder, index]);
         } else {
@@ -561,30 +565,13 @@ export const IndigoDeckStrategyModal: React.FC<ChoiceModalProps & { cards: CardT
                          return (
                              <div key={i} className="flex flex-col items-center gap-2 p-3 border border-gray-700 rounded bg-black/20">
                                  <Card card={card} size="md" />
-                                 
                                  <div className="flex flex-col gap-2 w-full">
                                      {isArt && (
-                                         <button 
-                                            onClick={() => handleActionChange(i, 'upgrade')}
-                                            className={`text-xs px-2 py-1 rounded border ${currentAction === 'upgrade' ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}
-                                         >
-                                             Enhance & Discard
-                                         </button>
+                                         <button onClick={() => handleActionChange(i, 'upgrade')} className={`text-xs px-2 py-1 rounded border ${currentAction === 'upgrade' ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>Enhance & Discard</button>
                                      )}
-                                     <button 
-                                        onClick={() => handleActionChange(i, 'discard')}
-                                        className={`text-xs px-2 py-1 rounded border ${currentAction === 'discard' ? 'bg-red-900/50 border-red-500 text-red-200' : 'bg-gray-800 border-gray-600 text-gray-400'}`}
-                                     >
-                                         Discard
-                                     </button>
-                                     <button 
-                                        onClick={() => handleActionChange(i, 'deck')}
-                                        className={`text-xs px-2 py-1 rounded border ${currentAction === 'deck' ? 'bg-blue-900/50 border-blue-500 text-blue-200' : 'bg-gray-800 border-gray-600 text-gray-400'}`}
-                                     >
-                                         Return to Deck
-                                     </button>
+                                     <button onClick={() => handleActionChange(i, 'discard')} className={`text-xs px-2 py-1 rounded border ${currentAction === 'discard' ? 'bg-red-900/50 border-red-500 text-red-200' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>Discard</button>
+                                     <button onClick={() => handleActionChange(i, 'deck')} className={`text-xs px-2 py-1 rounded border ${currentAction === 'deck' ? 'bg-blue-900/50 border-blue-500 text-blue-200' : 'bg-gray-800 border-gray-600 text-gray-400'}`}>Return to Deck</button>
                                  </div>
-
                                  {currentAction === 'deck' && (
                                      <div className="flex items-center gap-2 mt-1">
                                          <span className="text-[10px] text-gray-400">Order: {deckIdx + 1}</span>
@@ -598,14 +585,172 @@ export const IndigoDeckStrategyModal: React.FC<ChoiceModalProps & { cards: CardT
                          );
                     })}
                 </div>
-
-                <button 
-                    onClick={() => onResolve({ actions, deckOrder })}
-                    className="bg-indigo-700 hover:bg-indigo-600 text-white px-8 py-3 rounded font-bold text-lg"
-                >
-                    Confirm Strategy
-                </button>
+                <button onClick={() => onResolve({ actions, deckOrder })} className="bg-indigo-700 hover:bg-indigo-600 text-white px-8 py-3 rounded font-bold text-lg">Confirm Strategy</button>
              </div>
         </div>
     );
+};
+
+// 7. 葬送の黒: コスト支払いモーダル
+interface BurialPaymentModalProps extends ChoiceModalProps {
+    costType: 'fixed' | 'variable';
+    costAmount: number; // variableの場合は最大値や計算用に使わず、単にX表示用などに使う
+    poolSize: number;
 }
+
+export const BurialPaymentModal: React.FC<BurialPaymentModalProps> = ({ title, description, costType, costAmount, poolSize, onResolve }) => {
+    const [variableCost, setVariableCost] = useState(0);
+    const maxVariable = Math.min(10, poolSize);
+
+    // 固定コストの場合の支払い可否
+    const canPayFixed = costType === 'fixed' && poolSize >= costAmount;
+
+    return (
+        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
+             <div className="bg-gray-900 border-2 border-stone-500 rounded-lg max-w-lg w-full p-6 text-center">
+                <h3 className="text-2xl font-cinzel text-stone-300 mb-4">{title}</h3>
+                <p className="text-gray-300 mb-2">{description}</p>
+                <div className="text-sm text-red-400 mb-6 font-bold">Current Blood Pool: {poolSize}</div>
+
+                {costType === 'fixed' ? (
+                    <div className="flex flex-col gap-4 items-center">
+                        <p className="text-xl">Cost: <span className="text-red-500 font-bold">{costAmount} Blood</span></p>
+                        <div className="flex gap-4 mt-4">
+                            <button 
+                                onClick={() => onResolve({ paid: true, amount: costAmount })}
+                                disabled={!canPayFixed}
+                                className={`px-6 py-3 rounded font-bold ${canPayFixed ? 'bg-red-800 hover:bg-red-700 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                            >
+                                Pay & Activate
+                            </button>
+                            <button 
+                                onClick={() => onResolve({ paid: false, amount: 0 })}
+                                className="px-6 py-3 rounded border border-gray-600 text-gray-300 hover:bg-gray-800"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-4 items-center w-full">
+                        <p className="text-xl mb-2">Pay <span className="text-red-500 font-bold">{variableCost}</span> Blood (Max: {maxVariable})</p>
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max={maxVariable} 
+                            value={variableCost} 
+                            onChange={(e) => setVariableCost(parseInt(e.target.value))}
+                            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-red-600"
+                        />
+                        <div className="flex justify-between w-full text-xs text-gray-500 px-1">
+                            <span>0</span>
+                            <span>{maxVariable}</span>
+                        </div>
+                        
+                        <div className="flex gap-4 mt-6">
+                            <button 
+                                onClick={() => onResolve({ paid: true, amount: variableCost })}
+                                disabled={variableCost === 0}
+                                className={`px-6 py-3 rounded font-bold ${variableCost > 0 ? 'bg-stone-700 hover:bg-stone-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                            >
+                                Pay {variableCost}
+                            </button>
+                            <button 
+                                onClick={() => onResolve({ paid: false, amount: 0 })}
+                                className="px-6 py-3 rounded border border-gray-600 text-gray-300 hover:bg-gray-800"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+             </div>
+        </div>
+    );
+};
+
+// 8. フィールドカード選択モーダル（超克の桜・凱旋用）
+interface FieldSelectionModalProps extends ChoiceModalProps {
+    field: CardType[];
+    minSelect?: number;
+    maxSelect?: number;
+    filter?: (c: CardType) => boolean;
+}
+
+export const FieldSelectionModal: React.FC<FieldSelectionModalProps> = ({ 
+    title, description, field, onResolve, minSelect = 0, maxSelect = 99, filter 
+}) => {
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    
+    // 選択可能なカードのみフィルタリング
+    // fieldは手札と異なり、配列のインデックスではなくIDで管理することが多いが、
+    // ここではIDを一意として扱う
+    const selectableCards = filter ? field.filter(filter) : field;
+    const unselectableCards = filter ? field.filter(c => !filter(c)) : [];
+
+    const toggleSelect = (id: string) => {
+        if (selectedIds.includes(id)) {
+            setSelectedIds(selectedIds.filter(sid => sid !== id));
+        } else {
+            if (selectedIds.length < maxSelect) {
+                setSelectedIds([...selectedIds, id]);
+            }
+        }
+    };
+    
+    const isValid = selectedIds.length >= minSelect && selectedIds.length <= maxSelect;
+
+    return (
+        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
+             <div className="bg-gray-900 border-2 border-pink-500 rounded-lg max-w-4xl w-full p-6 text-center max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-cinzel text-pink-400 mb-2">{title}</h3>
+                <p className="text-gray-300 mb-2">{description}</p>
+                <p className="text-sm text-pink-300 mb-6">
+                    Selected: {selectedIds.length} 
+                    {maxSelect < 99 && ` / ${maxSelect}`}
+                </p>
+                
+                <div className="flex flex-wrap justify-center gap-3 mb-8">
+                    {selectableCards.map((c) => {
+                        const isSelected = selectedIds.includes(c.id);
+                        return (
+                            <div key={c.id} className="relative cursor-pointer" onClick={() => toggleSelect(c.id)}>
+                                <div className={`transition-all ${isSelected ? 'transform -translate-y-4 shadow-[0_0_15px_rgba(236,72,153,0.8)]' : 'opacity-80'}`}>
+                                     <Card card={c} size="md" />
+                                </div>
+                                {isSelected && (
+                                    <div className="absolute -top-2 -right-2 bg-pink-600 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold border border-white">
+                                        ✓
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                    {/* 選択不可カードはグレーアウト */}
+                    {unselectableCards.map((c) => (
+                        <div key={c.id} className="relative opacity-30 grayscale cursor-not-allowed">
+                             <Card card={c} size="md" />
+                        </div>
+                    ))}
+                </div>
+
+                <div className="flex justify-center gap-4">
+                    <button 
+                        onClick={() => onResolve({ selectedIds })}
+                        disabled={!isValid}
+                        className={`px-8 py-3 rounded font-bold text-lg ${isValid ? 'bg-pink-700 hover:bg-pink-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                    >
+                        Enhance Selected ({selectedIds.length})
+                    </button>
+                    {/* 詰み防止用ボタン */}
+                    <button 
+                        onClick={() => onResolve({ selectedIds: [] })} 
+                        className="px-6 py-3 rounded border border-gray-600 text-gray-400 hover:text-white hover:bg-gray-800"
+                    >
+                        Cancel / Skip
+                    </button>
+                </div>
+             </div>
+        </div>
+    );
+};

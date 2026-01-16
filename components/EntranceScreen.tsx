@@ -60,10 +60,6 @@ export const EntranceScreen: React.FC<EntranceScreenProps> = ({ onStartSolo, onS
             📖 RULE BOOK / 遊び方
           </button>
         </div>
-
-        <div className="mt-16 text-xs text-gray-600 font-cinzel">
-            © Blood Recall Project / Generated for Demo
-        </div>
       </div>
 
       {/* ルールブックモーダル */}

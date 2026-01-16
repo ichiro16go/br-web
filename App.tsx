@@ -7,10 +7,16 @@ import { PlayerArea } from './components/PlayerArea';
 import { Market } from './components/Market';
 import { 
     CardSelectionModal, SimpleChoiceModal, HandSelectionModal, 
-    BlueSphereDeckControlModal, CircuitSelectionModal, IndigoDeckStrategyModal 
+    BlueSphereDeckControlModal, CircuitSelectionModal, IndigoDeckStrategyModal,
+    BurialPaymentModal, FieldSelectionModal
 } from './components/GameModals';
 import { EntranceScreen } from './components/EntranceScreen';
 import { GameLog } from './components/GameLog';
+
+// ... (setupGame, App, GameView は基本的に維持、GameView内のモーダル分岐のみ追加)
+
+// ... (中略: setupGame, App 定義など既存コード) ...
+// setupGame関数は変更なしのため省略可能ですが、全体の整合性を保つためAppコンポーネント全体を再定義します。
 
 const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string): GameState => {
   const p1Regalia = REGALIA_LIST.find(r => r.id === selectedRegaliaId) || REGALIA_LIST[0];
@@ -217,6 +223,7 @@ const App: React.FC = () => {
 const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
 
+  // ... (useEffect, Handlers 省略... 変更なし)
   useEffect(() => {
     if (state.phase === Phase.Main && state.turnPlayerId === 'cpu') {
       const timer = setTimeout(() => {
@@ -347,7 +354,7 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
 
       {state.pendingResolution && (
           <>
-            {/* Apoitakara Selection */}
+            {/* ... (既存のモーダル分岐は維持) ... */}
             {state.pendingResolution.type === 'APOITAKARA_SELECTION' && (
                 <CardSelectionModal 
                     title="Apoitakara's Vision"
@@ -356,8 +363,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
-            
-            {/* Shiragane Self Harm Selection */}
             {state.pendingResolution.type === 'SHIRAGANE_HAND_SELECT' && (
                 <HandSelectionModal 
                     title="Remembrance (Shiragane)"
@@ -369,8 +374,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
-
-            {/* Obotsu Base Selection */}
             {state.pendingResolution.type === 'OBOTSU_BASE_CHOICE' && (
                 <SimpleChoiceModal 
                     title="Obotsukagura's Choice"
@@ -382,8 +385,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
-            
-            {/* Obotsu Awakened Selection */}
             {state.pendingResolution.type === 'OBOTSU_AWAKENED_HAND_SELECT' && (
                 <HandSelectionModal 
                     title="Sacrifice for Knowledge"
@@ -393,8 +394,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     maxSelect={2}
                 />
             )}
-            
-            {/* Blue Sphere Upgrade */}
             {state.pendingResolution.type === 'BLUE_SPHERE_UPGRADE' && (
                 <CardSelectionModal 
                     title="Blue Sphere: Remembrance"
@@ -407,8 +406,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     }}
                 />
             )}
-            
-            {/* Blue Sphere Deck Control */}
             {state.pendingResolution.type === 'BLUE_SPHERE_DECK_CONTROL' && (
                 <BlueSphereDeckControlModal 
                     title="Blue Sphere: Deck Control"
@@ -417,8 +414,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
-            
-            {/* Indigo Wing: Hand to Circuit */}
             {state.pendingResolution.type === 'INDIGO_HAND_TO_CIRCUIT' && (
                 <HandSelectionModal 
                     title="Indigo Wing: Offerings"
@@ -427,8 +422,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
-
-            {/* Indigo Wing: Deck Strategy */}
             {state.pendingResolution.type === 'INDIGO_DECK_STRATEGY' && (
                 <IndigoDeckStrategyModal 
                     title="Indigo Wing: Strategy"
@@ -437,8 +430,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
-
-            {/* Indigo Wing: Upgrade Blood */}
             {state.pendingResolution.type === 'INDIGO_UPGRADE_BLOOD' && (
                 <HandSelectionModal 
                     title="Indigo Wing: Blood Upgrade"
@@ -450,8 +441,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
-
-            {/* Indigo Wing: Hand to Circuit (Draw) */}
             {state.pendingResolution.type === 'INDIGO_HAND_TO_CIRCUIT_DRAW' && (
                 <HandSelectionModal 
                     title="Indigo Wing: Exchange"
@@ -461,8 +450,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
-
-            {/* Indigo Wing: Circuit to Hand (Draw 2) */}
             {state.pendingResolution.type === 'INDIGO_CIRCUIT_TO_HAND' && (
                 <CircuitSelectionModal 
                     title="Indigo Wing: Retrieval"
@@ -471,7 +458,44 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
+            {state.pendingResolution.type === 'BURIAL_PAYMENT' && (
+                <BurialPaymentModal 
+                    title="Burial Black: Additional Cost"
+                    description="Choose to pay blood to activate the unique effect."
+                    costType={state.pendingResolution.costType}
+                    costAmount={state.pendingResolution.costAmount}
+                    poolSize={state.players.player.bloodPool.length}
+                    onResolve={handleResolvePending}
+                />
+            )}
+            {state.pendingResolution.type === 'BURIAL_SEARCH_DECK' && (
+                <CardSelectionModal 
+                    title="Burial Black: Search"
+                    description="Select a card to place on top of your deck (Deck will be shuffled)."
+                    cards={state.pendingResolution.cards}
+                    onResolve={handleResolvePending}
+                />
+            )}
+            {state.pendingResolution.type === 'BURIAL_FREE_RECALL' && (
+                <CardSelectionModal 
+                    title="Burial Black: Free Recall"
+                    description="Select a Recall card from the Market to recall for FREE."
+                    cards={state.pendingResolution.marketCards}
+                    onResolve={handleResolvePending}
+                />
+            )}
 
+            {/* --- 新規追加: 超克の桜【凱旋】 モーダル --- */}
+            {state.pendingResolution.type === 'CHERRY_VICTORY_SELECT' && (
+                <FieldSelectionModal 
+                    title="Cherry: Victory"
+                    description="Select up to 2 Slash Arts on your field to Remembrance Enhance."
+                    field={state.players.player.field}
+                    maxSelect={2}
+                    filter={(c) => c.type === CardType.Slash}
+                    onResolve={handleResolvePending}
+                />
+            )}
           </>
       )}
 

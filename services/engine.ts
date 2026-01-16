@@ -12,11 +12,13 @@ import {
   recalculateAttackTotal, resolveStartOfTurnEffects, performCleanup, getUpgradedCard
 } from './gameLogic';
 import { decideCpuAction } from './ai';
+import { shuffle } from '../utils/common';
 
 export const gameReducer = (state: GameState, action: ActionType): GameState => {
   const cloneState = structuredClone(state) as GameState;
   
   switch (action.type) {
+    // ... (ACTIVATE_BLOOD_RECALLなどは変更なし)
     case 'ACTIVATE_BLOOD_RECALL': {
         const { playerId } = action;
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
@@ -191,6 +193,7 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
       return cloneState;
     }
 
+    // ... (CRAFT_CARD, SELF_HARM, PROCESS_NEXT_TURN_START_EFFECT 変更なし)
     case 'CRAFT_CARD': {
         const { playerId, recipeId, paymentCardIds } = action;
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
@@ -251,13 +254,19 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
 
         switch (player.regalia.id) {
             case 'regalia-shiragane':
-                if (playerKey === 'cpu') {
-                    executeRemembranceEnhancement(player, cloneState.log, (c) => c.level === 1, isAwakened ? 2 : 1);
+                // 強化可能なカードがあるかチェック
+                const upgradeableCards = player.hand.filter(c => getUpgradedCard(c) !== null);
+                if (upgradeableCards.length === 0) {
+                    cloneState.log.push(`${player.name}はシラガネの効果を発動したが、手札に強化対象がなかった。`);
                 } else {
-                    cloneState.pendingResolution = { 
-                        type: 'SHIRAGANE_HAND_SELECT', 
-                        count: isAwakened ? 2 : 1 
-                    };
+                    if (playerKey === 'cpu') {
+                        executeRemembranceEnhancement(player, cloneState.log, (c) => c.level === 1, isAwakened ? 2 : 1);
+                    } else {
+                        cloneState.pendingResolution = { 
+                            type: 'SHIRAGANE_HAND_SELECT', 
+                            count: isAwakened ? 2 : 1 
+                        };
+                    }
                 }
                 break;
             case 'regalia-hihiirokane':
@@ -295,18 +304,22 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
                 break;
             case 'regalia-apoitakara':
                 if (isAwakened) {
-                    if (playerKey === 'cpu') {
-                        const drawn = drawCard(player, 3);
-                        player.deck = drawn.deck;
-                        const newCards = drawn.hand.slice(-3);
-                        const kept = newCards[0]; 
-                        const discarded = newCards.slice(1);
-                        player.hand = [...drawn.hand.slice(0, -3), kept];
-                        player.discard = [...drawn.discard, ...discarded];
-                        cloneState.log.push(`(CPU)${player.name}はアポイタカラを使用: 3枚見て1枚を手札に加え、残りを捨てた。`);
+                    if (player.deck.length === 0) {
+                        cloneState.log.push(`${player.name}はアポイタカラを使用したが、デッキが空だった。`);
                     } else {
-                        const deckTop3 = player.deck.splice(-3);
-                        cloneState.pendingResolution = { type: 'APOITAKARA_SELECTION', cards: deckTop3 };
+                        if (playerKey === 'cpu') {
+                            const drawn = drawCard(player, 3);
+                            player.deck = drawn.deck;
+                            const newCards = drawn.hand.slice(-3);
+                            const kept = newCards[0]; 
+                            const discarded = newCards.slice(1);
+                            player.hand = [...drawn.hand.slice(0, -3), kept];
+                            player.discard = [...drawn.discard, ...discarded];
+                            cloneState.log.push(`(CPU)${player.name}はアポイタカラを使用: 3枚見て1枚を手札に加え、残りを捨てた。`);
+                        } else {
+                            const deckTop3 = player.deck.splice(-3);
+                            cloneState.pendingResolution = { type: 'APOITAKARA_SELECTION', cards: deckTop3 };
+                        }
                     }
                 } else {
                     const drawn = drawCard(player, 1);
@@ -348,7 +361,12 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
                              cloneState.log.push(`(CPU)オボツカグラ: 手札を${toCircuit.length}枚血廻へ送り、同数引いた。`);
                          }
                     } else {
-                        cloneState.pendingResolution = { type: 'OBOTSU_AWAKENED_HAND_SELECT' };
+                        // 手札が0枚ならスキップ
+                        if (player.hand.length === 0) {
+                            cloneState.log.push(`${player.name}はオボツカグラを使用したが、手札がなかった。`);
+                        } else {
+                            cloneState.pendingResolution = { type: 'OBOTSU_AWAKENED_HAND_SELECT' };
+                        }
                     }
                 }
                 break;
@@ -371,6 +389,14 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         const desc = card.description.replace(/\n/g, '');
 
         if (desc.includes('手札にあるアーツカードを1枚選ぶ')) {
+             // 強化可能なカードがあるかチェック
+             const upgradeable = currentPlayer.hand.filter(c => getUpgradedCard(c) !== null);
+             if (upgradeable.length === 0) {
+                 cloneState.log.push(`[天球の蒼] 手札に強化可能なアーツがないためスキップした。`);
+                 cloneState.pendingTurnStartEffects.shift();
+                 return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
+             }
+
              if (state.turnPlayerId === 'p1') {
                  cloneState.pendingResolution = { type: 'BLUE_SPHERE_UPGRADE' };
              } else {
@@ -380,6 +406,12 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
              }
         }
         else if (desc.includes('デッキの上から2枚見る')) {
+             if (currentPlayer.deck.length === 0) {
+                 cloneState.log.push(`[天球の蒼] デッキがないためスキップした。`);
+                 cloneState.pendingTurnStartEffects.shift();
+                 return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
+             }
+
              if (state.turnPlayerId === 'p1') {
                  const deckTop2 = currentPlayer.deck.splice(-2);
                  cloneState.pendingResolution = { type: 'BLUE_SPHERE_DECK_CONTROL', cards: deckTop2 };
@@ -407,12 +439,19 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
 
         if (pending.type === 'APOITAKARA_SELECTION') {
              const selectedIndex = payload.selectedIndex as number;
-             const cards = pending.cards;
-             const kept = cards[selectedIndex];
-             const discarded = cards.filter((_, i) => i !== selectedIndex);
-             player.hand.push(kept);
-             player.discard.push(...discarded);
-             cloneState.log.push(`${player.name}はアポイタカラの効果で「${kept.name}」を手札に加え、残りを捨てた。`);
+             // selectedIndexが-1の場合はキャンセル（実際にはこのModalにはCancelがないが念のため）
+             if (selectedIndex !== -1) {
+                 const cards = pending.cards;
+                 const kept = cards[selectedIndex];
+                 const discarded = cards.filter((_, i) => i !== selectedIndex);
+                 player.hand.push(kept);
+                 player.discard.push(...discarded);
+                 cloneState.log.push(`${player.name}はアポイタカラの効果で「${kept.name}」を手札に加え、残りを捨てた。`);
+             } else {
+                 // 万が一の場合
+                 player.discard.push(...pending.cards);
+                 cloneState.log.push(`${player.name}は選択をスキップし、カードを全て捨てた。`);
+             }
         } 
         else if (pending.type === 'SHIRAGANE_HAND_SELECT') {
             const ids = payload.selectedIds as string[]; 
@@ -465,15 +504,17 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         }
         else if (pending.type === 'BLUE_SPHERE_UPGRADE') {
              const cardId = payload.cardId;
-             const cardIndex = player.hand.findIndex(c => c.id === cardId);
-             if (cardIndex !== -1) {
-                 const targetCard = player.hand[cardIndex];
-                 const upgraded = getUpgradedCard(targetCard);
-                 if (upgraded) {
-                     player.hand.splice(cardIndex, 1);
-                     player.bloodCircuit.push(targetCard);
-                     player.hand.push(upgraded);
-                     cloneState.log.push(`[天球の蒼] ${player.name}は${targetCard.name}を${upgraded.name}に強化した。`);
+             if (cardId) {
+                 const cardIndex = player.hand.findIndex(c => c.id === cardId);
+                 if (cardIndex !== -1) {
+                     const targetCard = player.hand[cardIndex];
+                     const upgraded = getUpgradedCard(targetCard);
+                     if (upgraded) {
+                         player.hand.splice(cardIndex, 1);
+                         player.bloodCircuit.push(targetCard);
+                         player.hand.push(upgraded);
+                         cloneState.log.push(`[天球の蒼] ${player.name}は${targetCard.name}を${upgraded.name}に強化した。`);
+                     }
                  }
              }
              if (cloneState.pendingTurnStartEffects) cloneState.pendingTurnStartEffects.shift();
@@ -587,6 +628,139 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
                 cloneState.log.push(`[機翼の藍] 血廻から${card.name}を手札に加え、2枚引いた。`);
             }
         }
+        // --- 葬送の黒 (Burial Black) Actions ---
+        else if (pending.type === 'BURIAL_PAYMENT') {
+            const { paid, amount } = payload as { paid: boolean, amount: number };
+            const cardId = pending.cardId;
+            const targetCard = player.field.find(c => c.id === cardId);
+
+            if (paid) {
+                // 支払い実行
+                if (player.bloodPool.length >= amount) {
+                    const payment = player.bloodPool.splice(0, amount);
+                    cloneState.log.push(`[葬送の黒] ブラッドを${amount}払い、固有効果を発動！`);
+                    
+                    // 効果分岐
+                    if (amount === 1) { // 1血: 1ドロー
+                        const drawn = drawCard(player, 1);
+                        player.deck = drawn.deck;
+                        player.hand = drawn.hand;
+                        player.discard = drawn.discard;
+                        cloneState.log.push(`[葬送の黒] 1枚引いた。`);
+                    } else if (amount === 5) { // 5血: 絶技【斬閃】を手札へ
+                        player.hand.push(createMasterySlashFlash());
+                        cloneState.log.push(`[葬送の黒] ゲーム外から「絶技【斬閃】」を手札に加えた。`);
+                    } else if (amount === 6) { // 6血: デッキ確認、1枚トップへ (次ステップへ)
+                        delete cloneState.pendingResolution; // 現在のモーダルを閉じて
+                        cloneState.pendingResolution = { type: 'BURIAL_SEARCH_DECK', cards: [...player.deck] }; // デッキ内容を渡して次へ
+                        return cloneState;
+                    } else if (amount === 7) { // 7血: 無料想起 (次ステップへ)
+                        delete cloneState.pendingResolution;
+                        const marketTops = state.market.recallPiles.map(pile => pile.length > 0 ? pile[pile.length-1] : null).filter(c => c !== null) as Card[];
+                        // マーケットにカードがなければ失敗扱い
+                        if (marketTops.length === 0) {
+                            cloneState.log.push(`[葬送の黒] 想起可能なカードがない。`);
+                            return cloneState;
+                        }
+                        cloneState.pendingResolution = { type: 'BURIAL_FREE_RECALL', marketCards: marketTops };
+                        return cloneState;
+                    } else { // X血: 攻撃力アップ
+                        if (targetCard) {
+                            targetCard.attack += amount;
+                            recalculateAttackTotal(player);
+                            cloneState.log.push(`[葬送の黒] 攻撃力が+${amount}された (計${targetCard.attack})。`);
+                        }
+                    }
+                } else {
+                    cloneState.log.push(`[System] ブラッド不足のため効果失敗。`);
+                }
+            } else {
+                cloneState.log.push(`[葬送の黒] 追加コストを支払わなかった。`);
+            }
+        }
+        else if (pending.type === 'BURIAL_SEARCH_DECK') {
+            const selectedIndex = payload.selectedIndex as number;
+            if (selectedIndex !== -1) {
+                // デッキから選択したカードを取り出し、トップへ置く (実質は並べ替え)
+                // UIで渡したcardsはコピーなので、実際のplayer.deckからIDで探すなどの処理が正確だが、
+                // モーダルのインデックスがソートされていなければそのまま使える。
+                // CardSelectionModalの仕様上、originalIndexが返ってくればOK。
+                // ここでは単純化のため、selectedIndexのカードを一旦抜き、トップへpushする。
+                if (selectedIndex < player.deck.length) {
+                    const card = player.deck.splice(selectedIndex, 1)[0];
+                    player.deck = shuffle(player.deck); // 残りをシャッフル
+                    player.deck.push(card); // 選んだカードをトップへ (popで引くので末尾がトップ)
+                    cloneState.log.push(`[葬送の黒] デッキを探し、${card.name}をデッキトップに固定した。`);
+                }
+            } else {
+                cloneState.log.push(`[葬送の黒] デッキ操作をキャンセルした。`);
+            }
+        }
+        else if (pending.type === 'BURIAL_FREE_RECALL') {
+            const selectedIndex = payload.selectedIndex as number; // マーケットのインデックス (0~4の山札インデックスではなく、提示されたカードリストのインデックス)
+            // モーダルには flat list を渡しているため、そのカードがどのパイルのトップかを逆引きする必要がある
+            const targetCard = pending.marketCards[selectedIndex];
+            
+            if (targetCard) {
+                // パイルを探す
+                const pileIndex = cloneState.market.recallPiles.findIndex(pile => pile.length > 0 && pile[pile.length - 1].id === targetCard.id);
+                
+                if (pileIndex !== -1) {
+                    const pile = cloneState.market.recallPiles[pileIndex];
+                    const card = pile.pop();
+                    if (card) {
+                        player.field.push(card);
+                        recalculateAttackTotal(player);
+                        cloneState.log.push(`[葬送の黒] ${card.name}をコストを支払わず想起した！`);
+                        
+                        // 想起時効果処理 (fromHand = false)
+                        resolveFieldEntryEffects(player, card, cloneState.log, false);
+                        recalculateAttackTotal(player);
+                    }
+                }
+            } else {
+                cloneState.log.push(`[葬送の黒] 想起をキャンセルした。`);
+            }
+        }
+        // --- 超克の桜 (Cherry Victory) Actions ---
+        else if (pending.type === 'CHERRY_VICTORY_SELECT') {
+            const selectedIds = payload.selectedIds as string[];
+            
+            if (selectedIds.length > 0) {
+                // フィールドからカードを探して処理
+                // Fieldにあるカードを強化して、元のカードをCircuitへ、新しいカードをHandへ
+                // 注意: Field配列を変更するため、インデックスがズレないように処理するか、新しい配列を作る
+                const newField: Card[] = [];
+                const cardsToProcess: Card[] = [];
+
+                for (const c of player.field) {
+                    if (selectedIds.includes(c.id)) {
+                        cardsToProcess.push(c);
+                    } else {
+                        newField.push(c);
+                    }
+                }
+                player.field = newField; // 選択されたカードを除外
+
+                for (const target of cardsToProcess) {
+                    const upgraded = getUpgradedCard(target);
+                    if (upgraded) {
+                        player.bloodCircuit.push(target);
+                        player.hand.push(upgraded); // 手札に加える（クリーンナップで捨てられるがデッキ循環に入る）
+                        cloneState.log.push(`[超克の桜] 凱旋：${target.name}を${upgraded.name}に【追憶強化】した。`);
+                    } else {
+                        // 強化できない場合（理論上選択させないが安全策）
+                        player.field.push(target);
+                    }
+                }
+                recalculateAttackTotal(player);
+            } else {
+                cloneState.log.push(`[超克の桜] 凱旋効果を使用しなかった。`);
+            }
+            
+            delete cloneState.pendingResolution;
+            return gameReducer(cloneState, { type: 'CLEANUP' }); // 処理完了後クリーンナップへ
+        }
 
         delete cloneState.pendingResolution;
         
@@ -630,6 +804,7 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         return cloneState;
     }
 
+    // ... (PASS_TURN以降変更なし)
     case 'PASS_TURN': {
         const { playerId } = action;
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
@@ -683,14 +858,56 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
                 loser.activeBuffs.damageReduction = 0;
             }
 
-            cloneState.log.push(`${winner.name} の勝利! ${damage} ダメージを与える.`);
             const actualDamage = Math.min(damage, loser.lifeCards.length);
-            const damagedCards = loser.lifeCards.splice(0, actualDamage);
-            loser.bloodPool.push(...damagedCards);
-            loser.life -= actualDamage;
-            cloneState.firstPlayerId = winner.id;
             
-            checkAwakening(loser, cloneState.log);
+            if (actualDamage > 0) {
+                cloneState.log.push(`${winner.name} の勝利! ${damage} ダメージを与える.`);
+                const damagedCards = loser.lifeCards.splice(0, actualDamage);
+                loser.bloodPool.push(...damagedCards);
+                loser.life -= actualDamage;
+                checkAwakening(loser, cloneState.log);
+
+                // --- 超克の桜【凱旋】チェック ---
+                const hasCherry = winner.field.some(c => c.name.includes('超克の桜'));
+                if (hasCherry) {
+                    const slashInField = winner.field.filter(c => c.type === CardType.Slash);
+                    if (slashInField.length > 0) {
+                        // プレイヤーの場合：選択へ
+                        if (winner.isHuman) {
+                            cloneState.firstPlayerId = winner.id; // 先攻更新
+                            cloneState.pendingResolution = { type: 'CHERRY_VICTORY_SELECT' };
+                            return cloneState; // クリーンナップへ行かずに返す
+                        } 
+                        // CPUの場合：自動選択（Lvの低い順に2枚まで強化）
+                        else {
+                            const targets = slashInField.sort((a, b) => a.level - b.level).slice(0, 2);
+                            const newField: Card[] = [];
+                            const cardsToProcess: Card[] = [];
+                            
+                            for (const c of winner.field) {
+                                if (targets.some(t => t.id === c.id)) cardsToProcess.push(c);
+                                else newField.push(c);
+                            }
+                            winner.field = newField;
+
+                            for (const target of cardsToProcess) {
+                                const upgraded = getUpgradedCard(target);
+                                if (upgraded) {
+                                    winner.bloodCircuit.push(target);
+                                    winner.hand.push(upgraded);
+                                    cloneState.log.push(`(CPU)超克の桜 凱旋：${target.name}を強化した。`);
+                                } else {
+                                    winner.field.push(target);
+                                }
+                            }
+                            recalculateAttackTotal(winner);
+                        }
+                    }
+                }
+            } else {
+                cloneState.log.push(`${winner.name} の勝利! しかしダメージは0だった。`);
+            }
+            cloneState.firstPlayerId = winner.id;
 
         } else {
             cloneState.log.push(`引き分け！ダメージなし.`);

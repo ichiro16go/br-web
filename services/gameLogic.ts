@@ -168,8 +168,8 @@ export const resolveFieldEntryEffects = (player: PlayerState, card: Card, log: s
 
     // ドロー効果
     if (card.description.includes('ドロー') || card.description.includes('Draw')) {
-         // 機翼の藍の条件付きドローはここでは処理しない
-         if (!card.name.includes('機翼の藍')) {
+         // 機翼の藍、葬送の黒(コスト条件)のドローはここでは処理しない
+         if (!card.name.includes('機翼の藍') && !card.name.includes('葬送の黒')) {
              const drawCount = (card.description.includes('計2枚') || card.description.includes('2ドロー') || card.description.includes('2枚引く')) ? 2 : 1;
              const drawn = drawCard(player, drawCount);
              player.deck = drawn.deck;
@@ -193,7 +193,7 @@ export const resolveFieldEntryEffects = (player: PlayerState, card: Card, log: s
     }
 
     // 特定カード獲得
-    if (card.description.includes('手札に加える') && !card.name.includes('機翼の藍')) {
+    if (card.description.includes('手札に加える') && !card.name.includes('機翼の藍') && !card.name.includes('葬送の黒')) {
         if (card.description.includes('赤緋血')) player.hand.push(createRedScarletBlood());
         else if (card.description.includes('斬撃一閃')) player.hand.push(createSlashFlash());
         else if (card.description.includes('絶技【斬閃】')) player.hand.push(createMasterySlashFlash());
@@ -211,7 +211,7 @@ export const resolveFieldEntryEffects = (player: PlayerState, card: Card, log: s
         executeRemembranceEnhancement(player, log, filter);
     }
     
-    // --- 機翼の藍 (Indigo Wing) の特殊処理 (選択UI呼び出し) ---
+    // --- 機翼の藍 (Indigo Wing) ---
     if (card.name.includes('機翼の藍')) {
         const lambda = createLambda();
         player.field.push(lambda);
@@ -219,35 +219,82 @@ export const resolveFieldEntryEffects = (player: PlayerState, card: Card, log: s
         log.push(`${player.name} は「自律人器群【ラムダ】」を召喚した (+${lambda.attack} ATK)`);
         
         const desc = card.description;
-        
-        // 1. 手札を任意枚数血廻へ送る
-        if (desc.includes('手札を任意枚数血廻へ送る')) {
-            if (player.isHuman) return { type: 'INDIGO_HAND_TO_CIRCUIT' };
-        }
-        // 2. デッキ上2枚を見て...
-        else if (desc.includes('デッキ上2枚を見て')) {
-            if (player.isHuman) {
+        if (player.isHuman) {
+            if (desc.includes('手札を任意枚数血廻へ送る')) {
+                // 手札が0枚ならスキップ
+                if (player.hand.length === 0) {
+                    log.push(`[機翼の藍] 手札がないため、血廻への送付をスキップした。`);
+                    return null;
+                }
+                return { type: 'INDIGO_HAND_TO_CIRCUIT' };
+            }
+            if (desc.includes('デッキ上2枚を見て')) {
+                 if (player.deck.length === 0) {
+                     log.push(`[機翼の藍] デッキがないため効果をスキップした。`);
+                     return null;
+                 }
                  const deckTop2 = player.deck.splice(-2);
                  return { type: 'INDIGO_DECK_STRATEGY', cards: deckTop2 };
             }
+            if (desc.includes('Lv1血アーツを【追憶強化】')) {
+                // 手札に対象があるか確認
+                const hasTarget = player.hand.some(c => c.type === CardType.Blood && c.level === 1 && getUpgradedCard(c) !== null);
+                if (!hasTarget) {
+                    log.push(`[機翼の藍] 手札に対象となるLv1血アーツがないためスキップした。`);
+                    return null;
+                }
+                return { type: 'INDIGO_UPGRADE_BLOOD' };
+            }
+            if (desc.includes('手札2枚まで血廻へ送る')) {
+                if (player.hand.length === 0) {
+                    log.push(`[機翼の藍] 手札がないため効果をスキップした。`);
+                    return null;
+                }
+                return { type: 'INDIGO_HAND_TO_CIRCUIT_DRAW' };
+            }
+            if (desc.includes('血廻にあるカードを1枚選び手札に加えてもよい')) {
+                if (player.bloodCircuit.length === 0) {
+                    log.push(`[機翼の藍] 血廻にカードがないため効果をスキップした。`);
+                    return null;
+                }
+                return { type: 'INDIGO_CIRCUIT_TO_HAND' };
+            }
         }
-        // 3. 手札のLv1血アーツを【追憶強化】
-        else if (desc.includes('Lv1血アーツを【追憶強化】')) {
-            if (player.isHuman) return { type: 'INDIGO_UPGRADE_BLOOD' };
+    }
+
+    // --- 葬送の黒 (Burial Black) ---
+    if (card.name.includes('葬送の黒')) {
+        const desc = card.description;
+        let costAmount = 0;
+        let costType: 'fixed' | 'variable' = 'fixed';
+
+        if (desc.includes('1血払う')) costAmount = 1;
+        else if (desc.includes('5血払う')) costAmount = 5;
+        else if (desc.includes('6血払う')) costAmount = 6;
+        else if (desc.includes('7血払う')) costAmount = 7;
+        else if (desc.includes('X血払う')) {
+            costAmount = 0;
+            costType = 'variable';
         }
-        // 4. 手札2枚まで血廻へ送る→送ったら1ドロー
-        else if (desc.includes('手札2枚まで血廻へ送る')) {
-            if (player.isHuman) return { type: 'INDIGO_HAND_TO_CIRCUIT_DRAW' };
+
+        if (player.isHuman) {
+            // 6血: デッキ探索 -> デッキが空ならスキップ
+            if (costAmount === 6 && player.deck.length === 0) {
+                log.push(`[葬送の黒] デッキが空のため効果を発動できない。`);
+                return null;
+            }
+            // 7血: 無料想起 -> マーケットが空ならスキップ (簡易判定)
+            // 厳密には各パイルが空かどうかだが、次のステップでチェックされるのでここでは支払いModalへ
+            
+            return { type: 'BURIAL_PAYMENT', cardId: card.id, costType, costAmount };
         }
-        // 5. 血廻のカード1枚を手札へ→2ドロー
-        else if (desc.includes('血廻にあるカードを1枚選び手札に加えてもよい')) {
-            if (player.isHuman) return { type: 'INDIGO_CIRCUIT_TO_HAND' };
-        }
+        // CPU logic is handled elsewhere or simplified
     }
 
     return null;
 };
 
+// ... (他関数は変更なし)
 /**
  * 神器覚醒チェック
  */
@@ -260,8 +307,6 @@ export const checkAwakening = (player: PlayerState, log: string[]): void => {
 
 /**
  * ターン開始時の効果をまとめて解決する関数
- * 天球の蒼、ラムダ、オボツの欠片などの効果を処理
- * @returns 選択が必要な処理がある場合、そのカードのリストを返す
  */
 export const resolveStartOfTurnEffects = (player: PlayerState, log: string[]): Card[] => {
     const pendingCards: Card[] = [];

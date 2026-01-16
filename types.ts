@@ -116,7 +116,11 @@ export type PendingResolution =
   | { type: 'INDIGO_DECK_STRATEGY'; cards: Card[] } // 機翼の藍: デッキトップ2枚操作
   | { type: 'INDIGO_UPGRADE_BLOOD' } // 機翼の藍: Lv1血アーツ強化
   | { type: 'INDIGO_HAND_TO_CIRCUIT_DRAW' } // 機翼の藍: 2枚まで血廻へ→ドロー
-  | { type: 'INDIGO_CIRCUIT_TO_HAND' }; // 機翼の藍: 血廻から手札へ
+  | { type: 'INDIGO_CIRCUIT_TO_HAND' } // 機翼の藍: 血廻から手札へ
+  | { type: 'BURIAL_PAYMENT'; cardId: string; costType: 'fixed' | 'variable'; costAmount: number } // 葬送の黒: コスト支払い
+  | { type: 'BURIAL_SEARCH_DECK'; cards: Card[] } // 葬送の黒(6血): デッキ探索
+  | { type: 'BURIAL_FREE_RECALL'; marketCards: Card[] } // 葬送の黒(7血): 無料想起
+  | { type: 'CHERRY_VICTORY_SELECT' }; // 超克の桜【凱旋】: 場の斬アーツ選択
 
 /**
  * ゲーム全体の状態管理
