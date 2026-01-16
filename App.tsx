@@ -359,15 +359,15 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onClick={handlePass}
                     disabled={!isPlayerTurn}
                     className={`
-                        h-12 w-24 lg:h-16 lg:w-32 rounded-lg font-cinzel font-bold transition-all transform active:scale-95 flex flex-col items-center justify-center border-2
-                        text-sm lg:text-lg
+                        h-12 w-24 md:h-16 md:w-32 rounded-lg font-cinzel font-bold transition-all transform active:scale-95 flex flex-col items-center justify-center border-2
+                        text-sm md:text-lg
                         ${isPlayerTurn 
                             ? 'bg-red-900 hover:bg-red-700 text-white border-red-500 shadow-[0_0_20px_rgba(220,38,38,0.4)]' 
                             : 'bg-gray-900 text-gray-600 border-gray-700 cursor-not-allowed'}
                     `}
                   >
                     <span>{isPlayerTurn ? 'END' : 'WAIT'}</span>
-                    <span className="text-[10px] lg:text-xs font-sans font-normal opacity-70">Turn</span>
+                    <span className="text-[10px] md:text-xs font-sans font-normal opacity-70">Turn</span>
                   </button>
               )}
         </div>
@@ -386,19 +386,19 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
              relative h-full bg-black/90 backdrop-blur-sm 
              transition-all duration-300 ease-in-out
              flex flex-col
-             ${isMarketOpen ? 'w-28 lg:w-56 border-l border-red-900/50 shadow-2xl' : 'w-0 border-none'}
+             ${isMarketOpen ? 'w-28 md:w-56 border-l border-red-900/50 shadow-2xl' : 'w-0 border-none'}
          `}>
              {/* Toggle Button: Positioned on the left side of the panel */}
              <button
                 onClick={() => setIsMarketOpen(!isMarketOpen)}
                 className="absolute top-20 -left-6 w-6 h-16 bg-red-950/90 border-y border-l border-red-900/50 rounded-l flex items-center justify-center text-red-200 hover:bg-red-900 z-50 cursor-pointer shadow-[-2px_0_5px_rgba(0,0,0,0.5)]"
              >
-                 <span className="text-[10px] lg:text-xs font-cinzel font-bold flex flex-col items-center gap-1">
+                 <span className="text-[10px] md:text-xs font-cinzel font-bold flex flex-col items-center gap-1">
                      {isMarketOpen ? <span>&rsaquo;</span> : <span>&lsaquo;</span>}
                  </span>
              </button>
              
-             <div className="w-full h-full overflow-hidden min-w-[7rem] lg:min-w-[14rem]">
+             <div className="w-full h-full overflow-hidden min-w-[7rem] md:min-w-[14rem]">
                 <Market 
                     recallPiles={state.market.recallPiles} 
                     onRecall={handleRecall} 
