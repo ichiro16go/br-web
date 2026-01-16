@@ -21,16 +21,16 @@ export const EntranceScreen: React.FC<EntranceScreenProps> = ({ onStartSolo, onS
       <div className="z-10 flex flex-col items-center max-w-4xl w-full">
         {/* タイトルロゴエリア */}
         <div className="mb-16 text-center animate-fade-in-down">
-          <h1 className="text-6xl lg:text-8xl font-cinzel text-red-600 tracking-wider drop-shadow-[0_0_15px_rgba(220,38,38,0.8)] mb-2">
+          <h1 className="text-6xl md:text-8xl font-cinzel text-red-600 tracking-wider drop-shadow-[0_0_15px_rgba(220,38,38,0.8)] mb-2">
             BLOOD RECALL
           </h1>
-          <p className="text-gray-400 font-cinzel tracking-[0.5em] text-sm lg:text-base uppercase">
+          <p className="text-gray-400 font-cinzel tracking-[0.5em] text-sm md:text-base uppercase">
             The Deck-Building Game
           </p>
         </div>
 
         {/* メニューボタンエリア */}
-        <div className="flex flex-col gap-6 w-full max-w-lg animate-fade-in-up">
+        <div className="flex flex-col gap-6 w-full max-w-md animate-fade-in-up">
           <button 
             onClick={onStartSolo}
             className="group relative bg-gradient-to-r from-red-950 to-black border-2 border-red-800 p-6 rounded-lg overflow-hidden hover:border-red-500 transition-all duration-300 hover:shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:scale-105"
@@ -129,7 +129,7 @@ export const EntranceScreen: React.FC<EntranceScreenProps> = ({ onStartSolo, onS
               <section>
                 <h3 className="text-xl font-bold text-red-400 mb-3 border-l-4 border-red-600 pl-3">3. 重要なシステム</h3>
                 
-                <div className="grid lg:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-2 gap-4">
                   <div className="bg-purple-900/10 p-4 rounded border border-purple-900/30">
                     <h4 className="font-bold text-purple-300 mb-2">人器覚醒 (Awakening)</h4>
                     <p className="text-sm text-gray-400">

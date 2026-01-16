@@ -56,6 +56,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                 player={player}
                 isCurrentUser={isCurrentUser}
                 isOpponent={isOpponent}
+                phase={phase} // Phaseを追加
                 onRegaliaClick={handleRegaliaClick}
                 onActivateBloodRecall={onActivateBloodRecall}
             />
@@ -85,8 +86,8 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
         />
 
         {/* プレイヤー名表示 */}
-        <div className={`absolute right-4 ${isOpponent ? 'top-2' : 'bottom-20 lg:bottom-2'} pointer-events-none z-0`}>
-             <div className="text-4xl lg:text-6xl font-cinzel font-bold text-white/5 select-none">
+        <div className={`absolute right-4 ${isOpponent ? 'top-2' : 'bottom-20 md:bottom-2'} pointer-events-none z-0`}>
+             <div className="text-4xl md:text-6xl font-cinzel font-bold text-white/5 select-none">
                 {isOpponent ? 'OPPONENT' : 'PLAYER'}
             </div>
         </div>
@@ -99,6 +100,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                 isCurrentUser={isCurrentUser}
                 onClose={() => setSelectedRegalia(null)}
                 onSelfHarm={handleConfirmSelfHarm}
+                onActivateBloodRecall={onActivateBloodRecall} // Handlerを追加
             />
         )}
 
