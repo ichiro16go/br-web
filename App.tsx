@@ -1,8 +1,9 @@
+
 import React, { useReducer, useEffect, useState, useRef } from 'react';
 import { gameReducer } from './services/engine';
 import { createPlayer } from './services/gameLogic';
 import { GameState, Phase, CardType } from './types';
-import { REGALIA_LIST, RECALL_SETS, createRecallCard, BLOOD_RECALLS, getRegaliaTheme } from './constants/index';
+import { REGALIA_LIST, RECALL_SETS, createRecallCard, BLOOD_RECALLS, getRegaliaTheme, RecallColorSet } from './constants/index';
 import { PlayerArea } from './components/PlayerArea';
 import { Market } from './components/Market';
 import { 
@@ -12,13 +13,10 @@ import {
 } from './components/GameModals';
 import { EntranceScreen } from './components/EntranceScreen';
 import { GameLog } from './components/GameLog';
+import { getCardStyles } from './utils/cardStyles';
 
-// ... (setupGame, App, GameView は基本的に維持、GameView内のモーダル分岐のみ追加)
-
-// ... (中略: setupGame, App 定義など既存コード) ...
-// setupGame関数は変更なしのため省略可能ですが、全体の整合性を保つためAppコンポーネント全体を再定義します。
-
-const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string): GameState => {
+// セットアップ関数を変更：事前に選ばれたセットを受け取る
+const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string, selectedSets: RecallColorSet[]): GameState => {
   const p1Regalia = REGALIA_LIST.find(r => r.id === selectedRegaliaId) || REGALIA_LIST[0];
   
   const otherRegalias = REGALIA_LIST.filter(r => r.id !== selectedRegaliaId);
@@ -27,9 +25,7 @@ const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string): Ga
   const cpuRecalls = BLOOD_RECALLS.filter(br => br.regaliaId === cpuRegalia.id);
   const cpuBloodRecall = cpuRecalls[Math.floor(Math.random() * cpuRecalls.length)];
 
-  const shuffledSets = [...RECALL_SETS].sort(() => Math.random() - 0.5);
-  const selectedSets = shuffledSets.slice(0, 5);
-  
+  // ここでのランダム選出は廃止し、引数を使用する
   const recallPiles = selectedSets.map(set => {
       const cards = set.cards.map(tmpl => createRecallCard(tmpl));
       return cards.sort(() => Math.random() - 0.5);
@@ -64,11 +60,22 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>('entrance');
   const [selectedRegalia, setSelectedRegalia] = useState<string | null>(null);
   const [selectedBloodRecall, setSelectedBloodRecall] = useState<string | null>(null);
+  
+  // 今回のゲームで使用するリコールセット（5色）
+  const [activeRecallSets, setActiveRecallSets] = useState<RecallColorSet[]>([]);
+
+  // ソロモード開始時にリコールセットをランダムに決定する
+  const handleStartSolo = () => {
+      const shuffledSets = [...RECALL_SETS].sort(() => Math.random() - 0.5);
+      const selected = shuffledSets.slice(0, 5);
+      setActiveRecallSets(selected);
+      setCurrentView('regalia_select');
+  };
 
   if (currentView === 'entrance') {
       return (
           <EntranceScreen 
-            onStartSolo={() => setCurrentView('regalia_select')}
+            onStartSolo={handleStartSolo}
             onStartVersus={() => { /* Future Impl */ }}
           />
       );
@@ -76,15 +83,44 @@ const App: React.FC = () => {
 
   if (currentView === 'regalia_select') {
     return (
-      <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center text-white p-4 overflow-y-auto">
+      <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-start text-white p-4 overflow-y-auto custom-scrollbar">
         <button 
             onClick={() => setCurrentView('entrance')}
             className="absolute top-4 left-4 text-gray-500 hover:text-white flex items-center gap-2"
         >
             ← Back to Title
         </button>
-        <h1 className="text-4xl font-cinzel text-red-600 mb-8 mt-8">Blood Recall</h1>
-        <h2 className="text-xl mb-4">Choose your Regalia (Jinki)</h2>
+
+        <h1 className="text-4xl font-cinzel text-red-600 mb-2 mt-8">Regalia Selection</h1>
+        <p className="text-gray-400 mb-8">Review the market forecast and choose your weapon.</p>
+
+        {/* --- Market Forecast (市場予報) --- */}
+        <div className="w-full max-w-5xl bg-black/40 border border-gray-800 rounded-lg p-4 mb-8">
+            <h3 className="text-center font-cinzel text-gray-300 mb-3 text-sm tracking-widest border-b border-gray-700 pb-2">
+                MARKET FORECAST (THIS GAME)
+            </h3>
+            <div className="flex flex-wrap justify-center gap-3">
+                {activeRecallSets.map((set, idx) => {
+                    // 色ごとのスタイルを取得するためのダミーカード情報
+                    const dummyCard = { name: set.cards[0].name, type: CardType.Recall } as any;
+                    const styles = getCardStyles(dummyCard);
+                    
+                    return (
+                        <div key={idx} className={`w-32 h-20 rounded border-2 flex flex-col items-center justify-center relative overflow-hidden shadow-lg ${styles.outer}`}>
+                            <div className={`w-full text-center text-[10px] font-bold py-1 ${styles.header}`}>
+                                {set.colorName.split(' ')[1] || set.colorName}
+                            </div>
+                            <div className={`flex-1 flex items-center justify-center p-2 text-center text-[10px] leading-tight ${styles.text} bg-white/10 w-full`}>
+                                <span className="opacity-90 font-bold">{set.cards[0].name}</span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+
+        <h2 className="text-xl mb-4 font-cinzel text-red-400">Choose your Regalia</h2>
+        
         <div className="flex gap-4 flex-wrap justify-center max-w-6xl pb-8">
           {REGALIA_LIST.map(r => {
             const theme = getRegaliaTheme(r.id);
@@ -214,7 +250,7 @@ const App: React.FC = () => {
   }
 
   if (currentView === 'game' && selectedRegalia && selectedBloodRecall) {
-      return <GameView key={`${selectedRegalia}-${selectedBloodRecall}`} initialState={setupGame(selectedRegalia, selectedBloodRecall)} />;
+      return <GameView key={`${selectedRegalia}-${selectedBloodRecall}`} initialState={setupGame(selectedRegalia, selectedBloodRecall, activeRecallSets)} />;
   }
 
   return null;

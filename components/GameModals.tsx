@@ -4,8 +4,9 @@ import { Card } from './Card';
 import { CRAFT_RECIPES } from '../constants/index';
 
 // ----------------------------------------------------------------------
-// 神器詳細モーダル
+// 神器詳細モーダル (RegaliaModal)
 // ----------------------------------------------------------------------
+// 神器のステータス詳細を表示し、自傷アクションを行うためのモーダル
 interface RegaliaModalProps {
     regalia: RegaliaCard;
     player: PlayerState;
@@ -17,6 +18,7 @@ interface RegaliaModalProps {
 export const RegaliaModal: React.FC<RegaliaModalProps> = ({ regalia, player, isCurrentUser, onClose, onSelfHarm }) => {
     const isAwakened = player.isRegaliaAwakened;
     
+    // ステータスブロックのサブコンポーネント
     const StatsBlock = ({ title, stats, active }: { title: string, stats: RegaliaStats, active: boolean }) => (
         <div className={`p-3 rounded border transition-all ${active ? 'bg-red-900/30 border-red-500 shadow-lg' : 'bg-black/40 border-gray-700 opacity-60'}`}>
             <h4 className={`text-sm font-bold uppercase mb-2 ${active ? 'text-red-400' : 'text-gray-500'}`}>{title}</h4>
@@ -77,8 +79,9 @@ export const RegaliaModal: React.FC<RegaliaModalProps> = ({ regalia, player, isC
 };
 
 // ----------------------------------------------------------------------
-// クラフト（強化）モーダル
+// クラフト（強化）モーダル (CraftModal)
 // ----------------------------------------------------------------------
+// 手札のカードを素材にして上位のカードを作成するモーダル
 interface CraftModalProps {
     player: PlayerState;
     onClose: () => void;
@@ -86,6 +89,7 @@ interface CraftModalProps {
 }
 
 export const CraftModal: React.FC<CraftModalProps> = ({ player, onClose, onCraft }) => {
+    // 実行可能なレシピを優先表示するようにソート
     const sortedRecipes = [...CRAFT_RECIPES].sort((a, b) => {
         const aMatch = a.inputMatcher(player.hand) !== null;
         const bMatch = b.inputMatcher(player.hand) !== null;
@@ -162,8 +166,9 @@ export const CraftModal: React.FC<CraftModalProps> = ({ player, onClose, onCraft
 };
 
 // ----------------------------------------------------------------------
-// カード一覧表示モーダル（捨て札・血廻共通）
+// カード一覧表示モーダル (CardListModal)
 // ----------------------------------------------------------------------
+// 捨て札や血廻エリアなどのカード一覧を表示する
 interface CardListModalProps {
     title: string;
     cards: CardType[];
@@ -202,8 +207,9 @@ export const CardListModal: React.FC<CardListModalProps> = ({ title, cards, colo
 };
 
 // ----------------------------------------------------------------------
-// デッキ内容確認モーダル（順番を隠蔽）
+// デッキ内容確認モーダル (DeckListModal)
 // ----------------------------------------------------------------------
+// デッキの内容を表示するが、実際の並び順は隠蔽する
 interface DeckListModalProps {
     title: string;
     cards: CardType[];
@@ -249,13 +255,14 @@ export const DeckListModal: React.FC<DeckListModalProps> = ({ title, cards, onCl
 // ----------------------------------------------------------------------
 // 汎用選択モーダル群
 // ----------------------------------------------------------------------
+// アクション実行時の各種選択UI (カード選択、コスト支払いなど)
 interface ChoiceModalProps {
     title: string;
     description: string;
     onResolve: (payload: any) => void;
 }
 
-// 1. カード選択モーダル (アポイタカラ)
+// 1. 単一カード選択モーダル (アポイタカラなど)
 export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]; filter?: (c: CardType) => boolean }> = ({ title, description, cards, onResolve, filter }) => {
     const displayCards = cards.map((c, i) => ({ card: c, originalIndex: i }));
     const filteredCards = filter ? displayCards.filter(({ card }) => filter(card)) : displayCards;
@@ -294,7 +301,7 @@ export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]
     );
 };
 
-// 2. 二択モーダル (オボツカグラ覚醒前)
+// 2. 単純な二択モーダル (オボツカグラ覚醒前など)
 export const SimpleChoiceModal: React.FC<ChoiceModalProps & { options: { label: string, value: string }[] }> = ({ title, description, options, onResolve }) => {
     return (
         <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
@@ -317,8 +324,7 @@ export const SimpleChoiceModal: React.FC<ChoiceModalProps & { options: { label: 
     );
 };
 
-// 3. 手札複数選択モーダル
-// 拡張: minSelect, maxSelect, filter機能追加
+// 3. 手札複数選択モーダル (シラガネ、機翼の藍など)
 interface HandSelectionModalProps extends ChoiceModalProps {
     hand: CardType[];
     minSelect?: number;
@@ -403,7 +409,7 @@ export const HandSelectionModal: React.FC<HandSelectionModalProps> = ({
     );
 };
 
-// 4. 血廻カード選択モーダル
+// 4. 血廻カード選択モーダル (機翼の藍など)
 export const CircuitSelectionModal: React.FC<ChoiceModalProps & { circuit: CardType[] }> = ({ title, description, circuit, onResolve }) => {
     return (
         <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
@@ -520,7 +526,6 @@ export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: Ca
 // 6. 機翼の藍用デッキ操作モーダル
 // 「デッキ上2枚を見て、1枚アーツ強化/破棄/戻す」
 export const IndigoDeckStrategyModal: React.FC<ChoiceModalProps & { cards: CardType[] }> = ({ title, description, cards, onResolve }) => {
-    // ... (既存のIndigoDeckStrategyModalのコード)
     // 状態: 各カードについて { action: 'upgrade' | 'discard' | 'deck', deckOrder: number }
     const [actions, setActions] = useState< Record<number, 'upgrade' | 'discard' | 'deck'> >(
         Object.fromEntries(cards.map((_, i) => [i, 'deck']))

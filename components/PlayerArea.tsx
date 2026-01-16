@@ -16,6 +16,10 @@ interface PlayerAreaProps {
   phase: Phase; // アニメーション制御のためにフェーズを受け取る
 }
 
+/**
+ * プレイヤーエリアコンポーネント
+ * フィールド、手札、デッキ、捨て札、各種ステータスを表示する
+ */
 export const PlayerArea: React.FC<PlayerAreaProps> = ({ 
     player, 
     isCurrentUser, 
@@ -32,12 +36,14 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
   const [showCircuitModal, setShowCircuitModal] = useState(false);
   const [showDeckModal, setShowDeckModal] = useState(false);
 
+  // 神器クリック時の処理
   const handleRegaliaClick = () => {
       if (player.regalia) {
           setSelectedRegalia(player.regalia);
       }
   };
 
+  // 自傷アクションの確定処理
   const handleConfirmSelfHarm = () => {
       onSelfHarm();
       setSelectedRegalia(null);
@@ -48,7 +54,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
   
   // -- ボード上のゾーン定義 --
 
-  // 1. アイデンティティゾーン（左端）
+  // 1. アイデンティティゾーン（左端：神器と必殺技）
   const IdentityZone = (
       <div className="w-24 md:w-32 flex flex-col gap-2 p-1">
           <Zone title="Regalia" className="h-1/2 flex items-center justify-center bg-black/40 border-red-900/50">
@@ -108,7 +114,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
       </div>
   );
 
-  // 2. メインアクションゾーン（中央）
+  // 2. メインアクションゾーン（中央：フィールド、プール、血廻）
   const MainActionZone = (
       <div className="flex-1 flex flex-col p-1 gap-1 w-full max-w-4xl mx-auto px-4">
           {/* 上半分: フィールド */}
@@ -172,7 +178,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
       </div>
   );
 
-  // 3. ライブラリゾーン（右端）
+  // 3. ライブラリゾーン（右端：捨て札、デッキ）
   const LibraryZone = (
       <div className="w-24 md:w-32 flex flex-col gap-2 p-1">
           <Zone title="Discard" count={player.discard.length} className="h-1/2 flex items-center justify-center bg-black/40 cursor-pointer hover:bg-black/60 transition-colors">
@@ -236,7 +242,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
       </div>
   );
 
-  // 強化ボタン
+  // 強化ボタン（プレイヤーのみ）
   const CraftButton = isCurrentUser && (
       <div className="absolute bottom-32 right-4 z-40">
           <button 
@@ -271,7 +277,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
         {HandOverlay}
         {CraftButton}
 
-        {/* スタッツ表示 */}
+        {/* スタッツ表示 (Life, Atk, Resource) */}
         <div className={`absolute right-4 ${isOpponent ? 'top-4' : 'bottom-44'} pointer-events-none flex flex-col items-end gap-1`}>
             <div className="text-4xl font-cinzel font-bold text-white/10 drop-shadow-md">
                 {isOpponent ? 'OPPONENT' : 'PLAYER'}
@@ -316,7 +322,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
             </div>
         </div>
 
-        {/* モーダル群 */}
+        {/* 各種モーダル */}
         {selectedRegalia && (
             <RegaliaModal 
                 regalia={selectedRegalia}

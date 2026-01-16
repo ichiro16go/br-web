@@ -1,13 +1,14 @@
-import { PlayerState, Card, CardType, RegaliaCard, RegaliaStats, PendingResolution } from '../types';
+import { PlayerState, Card, CardType, RegaliaStats, RegaliaCard } from '../types';
 import { 
   INITIAL_LIFE, STARTER_DECK_SLASH_COUNT, STARTER_DECK_BLOOD_COUNT, 
-  createStarterSlash, createStarterBlood, BLOOD_RECALLS, 
-  createSlashFlash, createMasterySlashFlash, createRedScarletBlood, createTorrentRedStarBlood, createLambda, createObotsuFragment
+  createStarterSlash, createStarterBlood, BLOOD_RECALLS 
 } from '../constants/index';
 import { shuffle } from '../utils/common';
 
 /**
- * プレイヤーの現在の神器ステータス（覚醒状態を考慮）を取得する
+ * プレイヤーの現在の神器ステータス（覚醒状態を考慮）を取得する関数
+ * @param player 対象プレイヤー
+ * @returns 適用される神器ステータス（Base または Awakened）
  */
 export const getRegaliaStats = (player: PlayerState): RegaliaStats | null => {
     if (!player.regalia) return null;
@@ -15,8 +16,9 @@ export const getRegaliaStats = (player: PlayerState): RegaliaStats | null => {
 };
 
 /**
- * 現在の場のカードから合計攻撃力を再計算する
- * (永続効果やバフの適用漏れを防ぐため)
+ * 現在の場のカードから合計攻撃力を再計算する関数
+ * 永続効果やバフの適用漏れを防ぐために使用する
+ * @param player 対象プレイヤー
  */
 export const recalculateAttackTotal = (player: PlayerState): void => {
     let total = 0;
@@ -24,13 +26,18 @@ export const recalculateAttackTotal = (player: PlayerState): void => {
     for (const card of player.field) {
         total += card.attack;
     }
-    // その他のバフがあればここで加算（例：ブラッドリコールによる永続バフなどがあれば）
+    // 注: activeBuffsによる加算はReducer側で制御している場合が多いが、
+    // ここで一元管理することも検討可能。現状はベース値の計算に留める。
     
     player.attackTotal = total;
 };
 
 /**
- * プレイヤーにカードを引かせる処理
+ * プレイヤーにカードを引かせる関数
+ * 山札がない場合は捨て札をシャッフルして山札にする
+ * @param player 対象プレイヤー
+ * @param count 引く枚数
+ * @returns 更新されたプレイヤー状態
  */
 export const drawCard = (player: PlayerState, count: number): PlayerState => {
   let newDeck = [...player.deck];
@@ -56,7 +63,8 @@ export const drawCard = (player: PlayerState, count: number): PlayerState => {
 };
 
 /**
- * 初期デッキを生成する
+ * 初期デッキを生成する関数
+ * @returns シャッフル済みの初期デッキ
  */
 export const createInitialDeck = (): Card[] => {
   const deck: Card[] = [];
@@ -66,7 +74,13 @@ export const createInitialDeck = (): Card[] => {
 };
 
 /**
- * 新規プレイヤーを作成する
+ * 新規プレイヤーを作成する関数
+ * @param id プレイヤーID
+ * @param name プレイヤー名
+ * @param isHuman 人間かどうか
+ * @param regalia 使用する神器
+ * @param bloodRecallId 選択したブラッドリコールID
+ * @returns 初期化されたプレイヤー状態
  */
 export const createPlayer = (id: string, name: string, isHuman: boolean, regalia: RegaliaCard, bloodRecallId: string): PlayerState => {
   const deck = createInitialDeck();
@@ -104,199 +118,16 @@ export const createPlayer = (id: string, name: string, isHuman: boolean, regalia
     activeBuffs: {}
   };
   
+  // 初期手札をドロー
   player = drawCard(player, regalia.base.handSize);
   return player;
 };
 
 /**
- * 追憶強化ロジック
- */
-export const getUpgradedCard = (card: Card): Card | null => {
-    if (card.name === '斬撃') return createSlashFlash();
-    if (card.name === '斬撃一閃') return createMasterySlashFlash();
-    if (card.name === '赤血') return createRedScarletBlood();
-    if (card.name === '赤緋血') return createTorrentRedStarBlood();
-    return null;
-};
-
-/**
- * 追憶強化を実行する
- */
-export const executeRemembranceEnhancement = (player: PlayerState, log: string[], filter?: (c: Card) => boolean, count: number = 1): void => {
-    for (let k = 0; k < count; k++) {
-        const candidates = player.hand.map((c, i) => ({ card: c, index: i }))
-            .filter(({ card }) => (card.type === CardType.Slash || card.type === CardType.Blood));
-        
-        const validCandidates = filter ? candidates.filter(({ card }) => filter(card)) : candidates;
-
-        if (validCandidates.length === 0) {
-            log.push(`${player.name}の手札に【追憶強化】の対象がなかった。`);
-            return;
-        }
-
-        const targetInfo = validCandidates[0];
-        const targetCard = targetInfo.card;
-        const upgradedCard = getUpgradedCard(targetCard);
-        
-        if (upgradedCard) {
-            player.hand.splice(targetInfo.index, 1);
-            player.bloodCircuit.push(targetCard);
-            player.hand.push(upgradedCard);
-            log.push(`${player.name}は【追憶強化】を行った: ${targetCard.name} -> ${upgradedCard.name} (血廻へ)`);
-        } else {
-            log.push(`${player.name}の${targetCard.name}はこれ以上強化できない。`);
-        }
-    }
-};
-
-/**
- * カードが場に出た時の効果解決
- * @param fromHand 手札からプレイされたかどうか (雷霆の灰などの判定用)
- * @returns ユーザー選択が必要な場合、PendingResolutionオブジェクトを返す。完了した場合はnull。
- */
-export const resolveFieldEntryEffects = (player: PlayerState, card: Card, log: string[], fromHand: boolean = false): PendingResolution | null => {
-    // ターン開始時効果や永続効果を持つカードはここでは発動しない
-    if (['天球の蒼', '自律人器群【ラムダ】', 'オボツの欠片'].includes(card.name)) return null;
-
-    // 雷霆の灰 (Gray): 手札からプレイされた時のみ固有効果が発動する
-    if (card.name.includes('雷霆の灰') && !fromHand) {
-        log.push(`[System] ${card.name}は手札から置かれていないため、固有効果は発動しない。`);
-        return null;
-    }
-
-    // --- 即時解決系エフェクト ---
-
-    // ドロー効果
-    if (card.description.includes('ドロー') || card.description.includes('Draw')) {
-         // 機翼の藍、葬送の黒(コスト条件)のドローはここでは処理しない
-         if (!card.name.includes('機翼の藍') && !card.name.includes('葬送の黒')) {
-             const drawCount = (card.description.includes('計2枚') || card.description.includes('2ドロー') || card.description.includes('2枚引く')) ? 2 : 1;
-             const drawn = drawCard(player, drawCount);
-             player.deck = drawn.deck;
-             player.hand = drawn.hand;
-             player.discard = drawn.discard;
-             log.push(`${player.name}は${drawCount}枚引いた。`);
-         }
-    }
-
-    // ブラッド追加 (プールへ)
-    if (card.description.includes('ブラッドプールに加える')) {
-        let amount = 0;
-        if (card.description.includes('4枚')) amount = 4;
-        else if (card.description.includes('3枚')) amount = 3;
-        else if (card.description.includes('1枚')) amount = 1;
-
-        if (amount > 0) {
-             for(let i=0; i<amount; i++) player.bloodPool.push(createStarterBlood());
-             log.push(`${player.name}はブラッド(+${amount})を得た。`);
-        }
-    }
-
-    // 特定カード獲得
-    if (card.description.includes('手札に加える') && !card.name.includes('機翼の藍') && !card.name.includes('葬送の黒')) {
-        if (card.description.includes('赤緋血')) player.hand.push(createRedScarletBlood());
-        else if (card.description.includes('斬撃一閃')) player.hand.push(createSlashFlash());
-        else if (card.description.includes('絶技【斬閃】')) player.hand.push(createMasterySlashFlash());
-        else if (card.description.includes('オボツの欠片')) player.hand.push(createObotsuFragment());
-    }
-
-    // 追憶強化 (雷霆の灰など、即時実行可能な単純なもの)
-    if (card.description.includes('【追憶強化】') && !card.name.includes('機翼の藍')) {
-        let filter: ((c: Card) => boolean) | undefined = undefined;
-        if (card.description.includes('Lv1アーツ')) {
-            filter = (c) => c.level === 1;
-        } else if (card.description.includes('Lv1血アーツ')) {
-            filter = (c) => c.level === 1 && c.type === CardType.Blood;
-        }
-        executeRemembranceEnhancement(player, log, filter);
-    }
-    
-    // --- 機翼の藍 (Indigo Wing) ---
-    if (card.name.includes('機翼の藍')) {
-        const lambda = createLambda();
-        player.field.push(lambda);
-        player.attackTotal += lambda.attack;
-        log.push(`${player.name} は「自律人器群【ラムダ】」を召喚した (+${lambda.attack} ATK)`);
-        
-        const desc = card.description;
-        if (player.isHuman) {
-            if (desc.includes('手札を任意枚数血廻へ送る')) {
-                // 手札が0枚ならスキップ
-                if (player.hand.length === 0) {
-                    log.push(`[機翼の藍] 手札がないため、血廻への送付をスキップした。`);
-                    return null;
-                }
-                return { type: 'INDIGO_HAND_TO_CIRCUIT' };
-            }
-            if (desc.includes('デッキ上2枚を見て')) {
-                 if (player.deck.length === 0) {
-                     log.push(`[機翼の藍] デッキがないため効果をスキップした。`);
-                     return null;
-                 }
-                 const deckTop2 = player.deck.splice(-2);
-                 return { type: 'INDIGO_DECK_STRATEGY', cards: deckTop2 };
-            }
-            if (desc.includes('Lv1血アーツを【追憶強化】')) {
-                // 手札に対象があるか確認
-                const hasTarget = player.hand.some(c => c.type === CardType.Blood && c.level === 1 && getUpgradedCard(c) !== null);
-                if (!hasTarget) {
-                    log.push(`[機翼の藍] 手札に対象となるLv1血アーツがないためスキップした。`);
-                    return null;
-                }
-                return { type: 'INDIGO_UPGRADE_BLOOD' };
-            }
-            if (desc.includes('手札2枚まで血廻へ送る')) {
-                if (player.hand.length === 0) {
-                    log.push(`[機翼の藍] 手札がないため効果をスキップした。`);
-                    return null;
-                }
-                return { type: 'INDIGO_HAND_TO_CIRCUIT_DRAW' };
-            }
-            if (desc.includes('血廻にあるカードを1枚選び手札に加えてもよい')) {
-                if (player.bloodCircuit.length === 0) {
-                    log.push(`[機翼の藍] 血廻にカードがないため効果をスキップした。`);
-                    return null;
-                }
-                return { type: 'INDIGO_CIRCUIT_TO_HAND' };
-            }
-        }
-    }
-
-    // --- 葬送の黒 (Burial Black) ---
-    if (card.name.includes('葬送の黒')) {
-        const desc = card.description;
-        let costAmount = 0;
-        let costType: 'fixed' | 'variable' = 'fixed';
-
-        if (desc.includes('1血払う')) costAmount = 1;
-        else if (desc.includes('5血払う')) costAmount = 5;
-        else if (desc.includes('6血払う')) costAmount = 6;
-        else if (desc.includes('7血払う')) costAmount = 7;
-        else if (desc.includes('X血払う')) {
-            costAmount = 0;
-            costType = 'variable';
-        }
-
-        if (player.isHuman) {
-            // 6血: デッキ探索 -> デッキが空ならスキップ
-            if (costAmount === 6 && player.deck.length === 0) {
-                log.push(`[葬送の黒] デッキが空のため効果を発動できない。`);
-                return null;
-            }
-            // 7血: 無料想起 -> マーケットが空ならスキップ (簡易判定)
-            // 厳密には各パイルが空かどうかだが、次のステップでチェックされるのでここでは支払いModalへ
-            
-            return { type: 'BURIAL_PAYMENT', cardId: card.id, costType, costAmount };
-        }
-        // CPU logic is handled elsewhere or simplified
-    }
-
-    return null;
-};
-
-// ... (他関数は変更なし)
-/**
- * 神器覚醒チェック
+ * 神器覚醒チェックを行う関数
+ * ライフが10以下の場合、覚醒フラグを立てる
+ * @param player 対象プレイヤー
+ * @param log ゲームログ配列
  */
 export const checkAwakening = (player: PlayerState, log: string[]): void => {
     if (player.life <= 10 && !player.isRegaliaAwakened) {
@@ -306,62 +137,13 @@ export const checkAwakening = (player: PlayerState, log: string[]): void => {
 };
 
 /**
- * ターン開始時の効果をまとめて解決する関数
- */
-export const resolveStartOfTurnEffects = (player: PlayerState, log: string[]): Card[] => {
-    const pendingCards: Card[] = [];
-
-    // 1. 天球の蒼の効果
-    const blueSpheres = player.field.filter(c => c.name === '天球の蒼');
-    for (const card of blueSpheres) {
-        const desc = card.description.replace(/\n/g, '');
-
-        if (desc.includes('手札にあるアーツカードを1枚選ぶ')) {
-            pendingCards.push(card);
-        }
-        else if (desc.includes('デッキの上から2枚見る')) {
-             pendingCards.push(card);
-        }
-        else if (desc.includes('赤緋血を1枚手札に加える')) {
-            player.hand.push(createRedScarletBlood());
-            log.push(`[天球の蒼] ${player.name}は赤緋血を手に入れた。`);
-        }
-        else if (desc.includes('ブラッドカード」を3枚')) {
-            for(let i=0; i<3; i++) player.bloodPool.push(createStarterBlood());
-            log.push(`[天球の蒼] ${player.name}のプールにブラッドカードが3枚追加された。`);
-        }
-        else if (desc.includes('斬撃一閃') && desc.includes('ブラッドプール')) {
-            player.hand.push(createSlashFlash());
-            player.bloodPool.push(createStarterBlood());
-            log.push(`[天球の蒼] ${player.name}は斬撃一閃とブラッドを得た。`);
-        }
-    }
-
-    // 2. ラムダの効果 (3体以上でブラッド追加)
-    const lambdaCount = player.field.filter(c => c.name === '自律人器群【ラムダ】').length;
-    if (lambdaCount >= 3) {
-        player.bloodPool.push(createStarterBlood());
-        player.bloodPool.push(createStarterBlood());
-        log.push(`[自律人器群【ラムダ】] 共鳴効果: ${player.name}はブラッド(+2)を得た。`);
-    }
-
-    // 3. オボツの欠片の効果 (1枚につきブラッド追加)
-    const fragmentCount = player.field.filter(c => c.name === 'オボツの欠片').length;
-    if (fragmentCount > 0) {
-        for(let i=0; i<fragmentCount; i++) {
-            player.bloodPool.push(createStarterBlood());
-        }
-        log.push(`[オボツの欠片] ${player.name}はブラッド(+${fragmentCount})を得た。`);
-    }
-
-    return pendingCards;
-};
-
-/**
- * プレイヤーのクリーンナップ処理を行う
+ * プレイヤーのクリーンナップ処理を行う関数
+ * 場のカードを捨て札に送り（一部除く）、手札を捨て、リソースをリセットし、次ターンのドローを行う
+ * @param player 対象プレイヤー
+ * @param log ゲームログ配列
  */
 export const performCleanup = (player: PlayerState, log: string[]): void => {
-    // フィールドカードの処理（一部カードは残留）
+    // 1. フィールドカードの処理（一部カードは残留）
     const remainingCards = [];
     const discardCards = [];
     
@@ -377,21 +159,21 @@ export const performCleanup = (player: PlayerState, log: string[]): void => {
     player.discard.push(...discardCards);
     player.field = remainingCards;
 
-    // リソースリセット (注: bloodPoolのクリアはRESOLVE_BATTLEで行うためここでは行わない)
+    // 2. リソースリセット (注: bloodPoolのクリアはRESOLVE_BATTLEで行われるが、ここでも念のため確認)
     player.hasPassed = false;
     
-    // 攻撃力再計算 (場に残ったカードの攻撃力を反映)
+    // 3. 攻撃力再計算 (場に残ったカードの攻撃力を反映)
     recalculateAttackTotal(player);
 
-    // アクション回数リセット
+    // 4. アクション回数リセット
     const stats = getRegaliaStats(player);
     const pactBonus = player.activeBuffs.kutonePactBonus || 0;
     player.remainingActions = (stats ? stats.bloodPact : 1) + pactBonus;
     
-    // 神器のアンタップ
+    // 5. 神器のアンタップ
     if (player.regalia) player.regalia.isTapped = false;
     
-    // 手札の処理（発狂は消滅、他は捨て札）
+    // 6. 手札の処理（発狂は消滅、他は捨て札）
     const handToDiscard: Card[] = [];
     for (const card of player.hand) {
         if (card.name === '発狂') {
@@ -403,7 +185,7 @@ export const performCleanup = (player: PlayerState, log: string[]): void => {
     player.discard.push(...handToDiscard);
     player.hand = [];
 
-    // 次ターンのドロー
+    // 7. 次ターンのドロー
     const drawCount = stats ? stats.handSize : 5;
     const drawn = drawCard(player, drawCount);
     player.deck = drawn.deck;
