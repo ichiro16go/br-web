@@ -12,7 +12,7 @@ export const HandSection: React.FC<HandSectionProps> = ({ player, isOpponent, on
     return (
         <div className={`
           absolute left-0 right-0 flex justify-center z-50 pointer-events-none 
-          ${isOpponent ?  'hidden lg:flex -top-0' :  '-bottom-0'}
+          ${isOpponent ?  'hidden lg:flex -top-5' :  '-bottom-0'}
         `}>
              <div className={`
                   inline-flex max-w-full gap-1 p-2 rounded-xl transition-transform duration-300 pointer-events-auto
