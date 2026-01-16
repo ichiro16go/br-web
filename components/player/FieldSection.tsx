@@ -14,8 +14,8 @@ interface FieldSectionProps {
 export const FieldSection: React.FC<FieldSectionProps> = ({ player, isOpponent, phase, setViewingCard }) => {
     // フィールドのカードを行ごとに分割（4枚区切り）
     const fieldRows: CardType[][] = [];
-    for (let i = 0; i < player.field.length; i += 4) {
-        fieldRows.push(player.field.slice(i, i + 4));
+    for (let i = 0; i < player.field.length; i += 6) {
+        fieldRows.push(player.field.slice(i, i + 6));
     }
     if (fieldRows.length === 0) fieldRows.push([]);
 
