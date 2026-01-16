@@ -25,7 +25,7 @@ export const EntranceScreen: React.FC<EntranceScreenProps> = ({ onStartSolo, onS
             BLOOD RECALL
           </h1>
           <p className="text-gray-400 font-cinzel tracking-[0.5em] text-sm md:text-base uppercase">
-            The Sanguine Deck-Building Game
+            The Deck-Building Game
           </p>
         </div>
 

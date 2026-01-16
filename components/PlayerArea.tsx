@@ -85,29 +85,18 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                                  <span>Cost: {player.bloodRecall.cost}</span>
                                  <span>{player.bloodRecall.timing}</span>
                              </div>
-                             {!player.isRegaliaAwakened && (
-                                 <div className="absolute inset-x-0 bottom-8 flex justify-center pointer-events-none">
-                                     <span className="bg-black/80 text-gray-400 text-[10px] font-bold border border-gray-600 px-2 py-0.5 rounded shadow-lg backdrop-blur-sm">
-                                         LOCKED
-                                     </span>
-                                 </div>
-                             )}
                          </div>
                          {/* 発動ボタンオーバーレイ */}
                          <div className="absolute inset-0 bg-black/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                             {player.isRegaliaAwakened ? (
-                                 player.bloodCircuit.length >= player.bloodRecall.cost ? (
-                                    <button 
-                                        onClick={onActivateBloodRecall}
-                                        className="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded font-bold"
-                                    >
-                                        ACTIVATE
-                                    </button>
-                                 ) : (
-                                    <span className="text-xs text-gray-500">Need {player.bloodRecall.cost} Circuit</span>
-                                 )
+                             {player.bloodCircuit.length >= player.bloodRecall.cost ? (
+                                <button 
+                                    onClick={onActivateBloodRecall}
+                                    className="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded font-bold"
+                                >
+                                    ACTIVATE
+                                </button>
                              ) : (
-                                 <span className="text-xs text-red-500 font-bold">Must Awaken</span>
+                                <span className="text-xs text-gray-500">Need {player.bloodRecall.cost} Circuit</span>
                              )}
                          </div>
                     </div>

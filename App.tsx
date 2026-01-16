@@ -1,51 +1,37 @@
 import React, { useReducer, useEffect, useState, useRef } from 'react';
 import { gameReducer } from './services/engine';
 import { createPlayer } from './services/gameLogic';
-import { GameState, Phase } from './types';
+import { GameState, Phase, CardType } from './types';
 import { REGALIA_LIST, RECALL_SETS, createRecallCard, BLOOD_RECALLS, getRegaliaTheme } from './constants/index';
 import { PlayerArea } from './components/PlayerArea';
 import { Market } from './components/Market';
-import { CardSelectionModal, SimpleChoiceModal, HandSelectionModal, BlueSphereDeckControlModal } from './components/GameModals';
+import { 
+    CardSelectionModal, SimpleChoiceModal, HandSelectionModal, 
+    BlueSphereDeckControlModal, CircuitSelectionModal, IndigoDeckStrategyModal 
+} from './components/GameModals';
 import { EntranceScreen } from './components/EntranceScreen';
 import { GameLog } from './components/GameLog';
 
-// --- テーマカラー定義ヘルパー ---
-// (定数ファイルへ移動推奨だが、現状はここで維持)
-// ... (getRegaliaTheme function logic is imported from constants but used here if we want styling in selection screen)
-// Note: Imported 'getRegaliaTheme' from constants/index to keep App.tsx cleaner, make sure it's exported there. 
-// If not exported in constants, I will redefine it here or use the imported one.
-// The previous step showed it being in App.tsx. I will assume it's moved or I'll reuse the one I defined in App.tsx previously.
-// actually, let's keep the helper here if it wasn't moved, or remove if it was.
-// Based on previous file content, getRegaliaTheme was in constants/jinki.ts AND App.tsx. 
-// I will use the one from imports.
-
-// --- 初期セットアップ用ヘルパー ---
 const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string): GameState => {
   const p1Regalia = REGALIA_LIST.find(r => r.id === selectedRegaliaId) || REGALIA_LIST[0];
   
-  // CPUはランダムに別の神器を選ぶ
   const otherRegalias = REGALIA_LIST.filter(r => r.id !== selectedRegaliaId);
   const cpuRegalia = otherRegalias[Math.floor(Math.random() * otherRegalias.length)];
   
-  // CPUのブラッドリコールをランダムに選ぶ
   const cpuRecalls = BLOOD_RECALLS.filter(br => br.regaliaId === cpuRegalia.id);
   const cpuBloodRecall = cpuRecalls[Math.floor(Math.random() * cpuRecalls.length)];
 
-  // マーケットデッキの初期化 (7色セットからランダムに5色選出)
   const shuffledSets = [...RECALL_SETS].sort(() => Math.random() - 0.5);
   const selectedSets = shuffledSets.slice(0, 5);
   
-  // 各セットごとに山札を作成し、シャッフルして配置
   const recallPiles = selectedSets.map(set => {
-      // セット内の5枚のカード定義を使って実体化
       const cards = set.cards.map(tmpl => createRecallCard(tmpl));
-      // 山札内でシャッフル
       return cards.sort(() => Math.random() - 0.5);
   });
 
   return {
     phase: Phase.Main,
-    turnPlayerId: 'p1', // デモのため常にP1から開始
+    turnPlayerId: 'p1', 
     firstPlayerId: 'p1',
     players: {
       player: createPlayer('p1', 'Player 1', true, p1Regalia, selectedBloodRecallId),
@@ -66,7 +52,6 @@ const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string): Ga
   };
 };
 
-// 画面遷移の状態
 type AppView = 'entrance' | 'regalia_select' | 'blood_recall_select' | 'game';
 
 const App: React.FC = () => {
@@ -74,7 +59,6 @@ const App: React.FC = () => {
   const [selectedRegalia, setSelectedRegalia] = useState<string | null>(null);
   const [selectedBloodRecall, setSelectedBloodRecall] = useState<string | null>(null);
 
-  // エントランス画面
   if (currentView === 'entrance') {
       return (
           <EntranceScreen 
@@ -84,7 +68,6 @@ const App: React.FC = () => {
       );
   }
 
-  // ステップ1: 神器選択
   if (currentView === 'regalia_select') {
     return (
       <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center text-white p-4 overflow-y-auto">
@@ -172,7 +155,6 @@ const App: React.FC = () => {
     );
   }
 
-  // ステップ2: ブラッドリコール選択
   if (currentView === 'blood_recall_select' && selectedRegalia) {
       const availableRecalls = BLOOD_RECALLS.filter(br => br.regaliaId === selectedRegalia);
       const regaliaName = REGALIA_LIST.find(r => r.id === selectedRegalia)?.name;
@@ -225,7 +207,6 @@ const App: React.FC = () => {
       );
   }
 
-  // ゲーム画面
   if (currentView === 'game' && selectedRegalia && selectedBloodRecall) {
       return <GameView key={`${selectedRegalia}-${selectedBloodRecall}`} initialState={setupGame(selectedRegalia, selectedBloodRecall)} />;
   }
@@ -233,11 +214,9 @@ const App: React.FC = () => {
   return null;
 };
 
-// ゲームコンポーネント
 const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
 
-  // AIループ
   useEffect(() => {
     if (state.phase === Phase.Main && state.turnPlayerId === 'cpu') {
       const timer = setTimeout(() => {
@@ -247,7 +226,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
     }
   }, [state]);
 
-  // アクションハンドラ
   const handlePlayCard = (cardId: string) => {
     if (state.turnPlayerId !== 'p1' || state.phase !== Phase.Main) return;
     dispatch({ type: 'PLAY_CARD', playerId: 'p1', cardId });
@@ -260,6 +238,12 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
 
   const handlePass = () => {
     if (state.turnPlayerId !== 'p1' || state.phase !== Phase.Main) return;
+    const hand = state.players.player.hand;
+    const playableCards = hand.filter(c => c.type !== CardType.Calamity);
+    if (playableCards.length > 0) {
+        alert("手札にカードが残っています。\nルール上、手札のカードは全てプレイする必要があります。\n(災厄カードを除く)");
+        return;
+    }
     dispatch({ type: 'PASS_TURN', playerId: 'p1' });
   };
 
@@ -278,7 +262,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
       dispatch({ type: 'ACTIVATE_BLOOD_RECALL', playerId: 'p1' });
   };
 
-  // 選択ポップアップの解決
   const handleResolvePending = (payload: any) => {
       dispatch({ type: 'RESOLVE_PENDING_ACTION', payload });
   };
@@ -289,17 +272,14 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
   return (
     <div className="h-screen w-full bg-[#1a0b0b] text-gray-200 flex overflow-hidden font-sans select-none">
       
-      {/* 左サイドバー: ログ & ステータス */}
       <GameLog 
         logs={state.log} 
         turnPlayerId={state.turnPlayerId} 
         phase={state.phase} 
       />
 
-      {/* 中央: ゲームボード */}
       <div className="flex-1 flex flex-col relative bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
         
-        {/* 相手側 (上半分) */}
         <div className="flex-1 border-b border-red-900/20 relative">
              <PlayerArea 
                 player={state.players.cpu} 
@@ -313,7 +293,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
               />
         </div>
 
-        {/* プレイヤー側 (下半分) */}
         <div className="flex-1 relative">
              <PlayerArea 
                 player={state.players.player} 
@@ -327,7 +306,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
               />
         </div>
 
-        {/* アクションバー (右下フローティング) */}
         <div className="absolute bottom-4 right-4 flex gap-2 z-30">
              {state.phase === Phase.GameOver ? (
                   <button onClick={() => window.location.reload()} className="bg-white text-black px-6 py-2 font-bold rounded hover:bg-gray-200 shadow-lg">
@@ -350,7 +328,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
               )}
         </div>
         
-        {/* モバイル用ログトグル (モバイルのみ表示) */}
         <div className="lg:hidden absolute top-2 left-2 z-30">
              <div className="bg-black/60 text-[10px] text-white/50 p-1 rounded border border-white/10 max-w-[200px] truncate">
                  {state.log[state.log.length - 1]}
@@ -359,7 +336,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
 
       </div>
 
-      {/* 右サイドバー: マーケット (契約エリア) */}
       <div className="w-40 md:w-56 bg-black/80 border-l border-red-900/30 flex flex-col z-20">
          <Market 
             recallPiles={state.market.recallPiles} 
@@ -369,9 +345,9 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
          />
       </div>
 
-      {/* 選択ポップアップモーダル */}
       {state.pendingResolution && (
           <>
+            {/* Apoitakara Selection */}
             {state.pendingResolution.type === 'APOITAKARA_SELECTION' && (
                 <CardSelectionModal 
                     title="Apoitakara's Vision"
@@ -380,6 +356,21 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
+            
+            {/* Shiragane Self Harm Selection */}
+            {state.pendingResolution.type === 'SHIRAGANE_HAND_SELECT' && (
+                <HandSelectionModal 
+                    title="Remembrance (Shiragane)"
+                    description={`Select ${state.pendingResolution.count} Art card(s) to upgrade.`}
+                    hand={state.players.player.hand}
+                    minSelect={state.pendingResolution.count}
+                    maxSelect={state.pendingResolution.count}
+                    filter={(c) => c.type === CardType.Slash || c.type === CardType.Blood}
+                    onResolve={handleResolvePending}
+                />
+            )}
+
+            {/* Obotsu Base Selection */}
             {state.pendingResolution.type === 'OBOTSU_BASE_CHOICE' && (
                 <SimpleChoiceModal 
                     title="Obotsukagura's Choice"
@@ -391,26 +382,33 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
+            
+            {/* Obotsu Awakened Selection */}
             {state.pendingResolution.type === 'OBOTSU_AWAKENED_HAND_SELECT' && (
                 <HandSelectionModal 
                     title="Sacrifice for Knowledge"
                     description="Select up to 2 cards to send to Blood Circuit. You will draw an equal amount."
                     hand={state.players.player.hand}
                     onResolve={handleResolvePending}
+                    maxSelect={2}
                 />
             )}
+            
+            {/* Blue Sphere Upgrade */}
             {state.pendingResolution.type === 'BLUE_SPHERE_UPGRADE' && (
                 <CardSelectionModal 
                     title="Blue Sphere: Remembrance"
                     description="Choose an Art card in your hand to upgrade (Remembrance Enhancement)."
                     cards={state.players.player.hand}
+                    filter={(c) => c.type === CardType.Slash || c.type === CardType.Blood}
                     onResolve={(payload) => {
-                         // selectedIndexからcardIdへ変換して渡す
                          const card = state.players.player.hand[payload.selectedIndex];
                          handleResolvePending({ cardId: card.id });
                     }}
                 />
             )}
+            
+            {/* Blue Sphere Deck Control */}
             {state.pendingResolution.type === 'BLUE_SPHERE_DECK_CONTROL' && (
                 <BlueSphereDeckControlModal 
                     title="Blue Sphere: Deck Control"
@@ -419,10 +417,64 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
+            
+            {/* Indigo Wing: Hand to Circuit */}
+            {state.pendingResolution.type === 'INDIGO_HAND_TO_CIRCUIT' && (
+                <HandSelectionModal 
+                    title="Indigo Wing: Offerings"
+                    description="Send any number of cards from your hand to Blood Circuit."
+                    hand={state.players.player.hand}
+                    onResolve={handleResolvePending}
+                />
+            )}
+
+            {/* Indigo Wing: Deck Strategy */}
+            {state.pendingResolution.type === 'INDIGO_DECK_STRATEGY' && (
+                <IndigoDeckStrategyModal 
+                    title="Indigo Wing: Strategy"
+                    description="Top 2 cards of Deck. Upgrade 1 Art, discard others, or return to deck."
+                    cards={state.pendingResolution.cards}
+                    onResolve={handleResolvePending}
+                />
+            )}
+
+            {/* Indigo Wing: Upgrade Blood */}
+            {state.pendingResolution.type === 'INDIGO_UPGRADE_BLOOD' && (
+                <HandSelectionModal 
+                    title="Indigo Wing: Blood Upgrade"
+                    description="Select 1 Level 1 Blood Art to upgrade."
+                    hand={state.players.player.hand}
+                    minSelect={1}
+                    maxSelect={1}
+                    filter={(c) => c.type === CardType.Blood && c.level === 1}
+                    onResolve={handleResolvePending}
+                />
+            )}
+
+            {/* Indigo Wing: Hand to Circuit (Draw) */}
+            {state.pendingResolution.type === 'INDIGO_HAND_TO_CIRCUIT_DRAW' && (
+                <HandSelectionModal 
+                    title="Indigo Wing: Exchange"
+                    description="Send up to 2 cards to Blood Circuit. If you send any, Draw 1."
+                    hand={state.players.player.hand}
+                    maxSelect={2}
+                    onResolve={handleResolvePending}
+                />
+            )}
+
+            {/* Indigo Wing: Circuit to Hand (Draw 2) */}
+            {state.pendingResolution.type === 'INDIGO_CIRCUIT_TO_HAND' && (
+                <CircuitSelectionModal 
+                    title="Indigo Wing: Retrieval"
+                    description="Select 1 card from Blood Circuit to add to hand. If you do, Draw 2."
+                    circuit={state.players.player.bloodCircuit}
+                    onResolve={handleResolvePending}
+                />
+            )}
+
           </>
       )}
 
-      {/* ゲームオーバーモーダル */}
       {state.phase === Phase.GameOver && (
           <div className="absolute inset-0 bg-black/90 z-[60] flex flex-col items-center justify-center animate-fade-in">
               <h1 className="text-6xl font-cinzel text-red-600 mb-4 animate-pulse">GAME OVER</h1>

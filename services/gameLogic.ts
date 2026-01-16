@@ -1,4 +1,4 @@
-import { PlayerState, Card, CardType, RegaliaCard, RegaliaStats } from '../types';
+import { PlayerState, Card, CardType, RegaliaCard, RegaliaStats, PendingResolution } from '../types';
 import { 
   INITIAL_LIFE, STARTER_DECK_SLASH_COUNT, STARTER_DECK_BLOOD_COUNT, 
   createStarterSlash, createStarterBlood, BLOOD_RECALLS, 
@@ -111,7 +111,7 @@ export const createPlayer = (id: string, name: string, isHuman: boolean, regalia
 /**
  * 追憶強化ロジック
  */
-const getUpgradedCard = (card: Card): Card | null => {
+export const getUpgradedCard = (card: Card): Card | null => {
     if (card.name === '斬撃') return createSlashFlash();
     if (card.name === '斬撃一閃') return createMasterySlashFlash();
     if (card.name === '赤血') return createRedScarletBlood();
@@ -151,19 +151,32 @@ export const executeRemembranceEnhancement = (player: PlayerState, log: string[]
 
 /**
  * カードが場に出た時の効果解決
+ * @param fromHand 手札からプレイされたかどうか (雷霆の灰などの判定用)
+ * @returns ユーザー選択が必要な場合、PendingResolutionオブジェクトを返す。完了した場合はnull。
  */
-export const resolveFieldEntryEffects = (player: PlayerState, card: Card, log: string[]): void => {
+export const resolveFieldEntryEffects = (player: PlayerState, card: Card, log: string[], fromHand: boolean = false): PendingResolution | null => {
     // ターン開始時効果や永続効果を持つカードはここでは発動しない
-    if (['天球の蒼', '自律人器群【ラムダ】', 'オボツの欠片'].includes(card.name)) return;
+    if (['天球の蒼', '自律人器群【ラムダ】', 'オボツの欠片'].includes(card.name)) return null;
+
+    // 雷霆の灰 (Gray): 手札からプレイされた時のみ固有効果が発動する
+    if (card.name.includes('雷霆の灰') && !fromHand) {
+        log.push(`[System] ${card.name}は手札から置かれていないため、固有効果は発動しない。`);
+        return null;
+    }
+
+    // --- 即時解決系エフェクト ---
 
     // ドロー効果
     if (card.description.includes('ドロー') || card.description.includes('Draw')) {
-         const drawCount = (card.description.includes('計2枚') || card.description.includes('2ドロー') || card.description.includes('2枚引く')) ? 2 : 1;
-         const drawn = drawCard(player, drawCount);
-         player.deck = drawn.deck;
-         player.hand = drawn.hand;
-         player.discard = drawn.discard;
-         log.push(`${player.name}は${drawCount}枚引いた。`);
+         // 機翼の藍の条件付きドローはここでは処理しない
+         if (!card.name.includes('機翼の藍')) {
+             const drawCount = (card.description.includes('計2枚') || card.description.includes('2ドロー') || card.description.includes('2枚引く')) ? 2 : 1;
+             const drawn = drawCard(player, drawCount);
+             player.deck = drawn.deck;
+             player.hand = drawn.hand;
+             player.discard = drawn.discard;
+             log.push(`${player.name}は${drawCount}枚引いた。`);
+         }
     }
 
     // ブラッド追加 (プールへ)
@@ -180,15 +193,15 @@ export const resolveFieldEntryEffects = (player: PlayerState, card: Card, log: s
     }
 
     // 特定カード獲得
-    if (card.description.includes('手札に加える')) {
+    if (card.description.includes('手札に加える') && !card.name.includes('機翼の藍')) {
         if (card.description.includes('赤緋血')) player.hand.push(createRedScarletBlood());
         else if (card.description.includes('斬撃一閃')) player.hand.push(createSlashFlash());
         else if (card.description.includes('絶技【斬閃】')) player.hand.push(createMasterySlashFlash());
         else if (card.description.includes('オボツの欠片')) player.hand.push(createObotsuFragment());
     }
 
-    // 追憶強化
-    if (card.description.includes('【追憶強化】')) {
+    // 追憶強化 (雷霆の灰など、即時実行可能な単純なもの)
+    if (card.description.includes('【追憶強化】') && !card.name.includes('機翼の藍')) {
         let filter: ((c: Card) => boolean) | undefined = undefined;
         if (card.description.includes('Lv1アーツ')) {
             filter = (c) => c.level === 1;
@@ -198,13 +211,41 @@ export const resolveFieldEntryEffects = (player: PlayerState, card: Card, log: s
         executeRemembranceEnhancement(player, log, filter);
     }
     
-    // 機翼の藍: ラムダ召喚
+    // --- 機翼の藍 (Indigo Wing) の特殊処理 (選択UI呼び出し) ---
     if (card.name.includes('機翼の藍')) {
         const lambda = createLambda();
         player.field.push(lambda);
         player.attackTotal += lambda.attack;
         log.push(`${player.name} は「自律人器群【ラムダ】」を召喚した (+${lambda.attack} ATK)`);
+        
+        const desc = card.description;
+        
+        // 1. 手札を任意枚数血廻へ送る
+        if (desc.includes('手札を任意枚数血廻へ送る')) {
+            if (player.isHuman) return { type: 'INDIGO_HAND_TO_CIRCUIT' };
+        }
+        // 2. デッキ上2枚を見て...
+        else if (desc.includes('デッキ上2枚を見て')) {
+            if (player.isHuman) {
+                 const deckTop2 = player.deck.splice(-2);
+                 return { type: 'INDIGO_DECK_STRATEGY', cards: deckTop2 };
+            }
+        }
+        // 3. 手札のLv1血アーツを【追憶強化】
+        else if (desc.includes('Lv1血アーツを【追憶強化】')) {
+            if (player.isHuman) return { type: 'INDIGO_UPGRADE_BLOOD' };
+        }
+        // 4. 手札2枚まで血廻へ送る→送ったら1ドロー
+        else if (desc.includes('手札2枚まで血廻へ送る')) {
+            if (player.isHuman) return { type: 'INDIGO_HAND_TO_CIRCUIT_DRAW' };
+        }
+        // 5. 血廻のカード1枚を手札へ→2ドロー
+        else if (desc.includes('血廻にあるカードを1枚選び手札に加えてもよい')) {
+            if (player.isHuman) return { type: 'INDIGO_CIRCUIT_TO_HAND' };
+        }
     }
+
+    return null;
 };
 
 /**
@@ -228,15 +269,12 @@ export const resolveStartOfTurnEffects = (player: PlayerState, log: string[]): C
     // 1. 天球の蒼の効果
     const blueSpheres = player.field.filter(c => c.name === '天球の蒼');
     for (const card of blueSpheres) {
-        // 改行を削除して判定を堅牢にする
         const desc = card.description.replace(/\n/g, '');
 
         if (desc.includes('手札にあるアーツカードを1枚選ぶ')) {
-            // 選択が必要なのでキューに追加
             pendingCards.push(card);
         }
         else if (desc.includes('デッキの上から2枚見る')) {
-             // 選択が必要なのでキューに追加
              pendingCards.push(card);
         }
         else if (desc.includes('赤緋血を1枚手札に加える')) {

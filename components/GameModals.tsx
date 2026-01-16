@@ -247,7 +247,7 @@ export const DeckListModal: React.FC<DeckListModalProps> = ({ title, cards, onCl
 };
 
 // ----------------------------------------------------------------------
-// 選択ポップアップ（アポイタカラ・オボツカグラ用）
+// 汎用選択モーダル群
 // ----------------------------------------------------------------------
 interface ChoiceModalProps {
     title: string;
@@ -256,25 +256,36 @@ interface ChoiceModalProps {
 }
 
 // 1. カード選択モーダル (アポイタカラ)
-export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[] }> = ({ title, description, cards, onResolve }) => {
+export const CardSelectionModal: React.FC<ChoiceModalProps & { cards: CardType[]; filter?: (c: CardType) => boolean }> = ({ title, description, cards, onResolve, filter }) => {
+    const displayCards = cards.map((c, i) => ({ card: c, originalIndex: i }));
+    const filteredCards = filter ? displayCards.filter(({ card }) => filter(card)) : displayCards;
+
     return (
         <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-gray-900 border-2 border-yellow-600 rounded-lg max-w-2xl w-full p-6 text-center">
                 <h3 className="text-2xl font-cinzel text-yellow-500 mb-2">{title}</h3>
                 <p className="text-gray-400 mb-8">{description}</p>
-                <div className="flex justify-center gap-4 flex-wrap">
-                    {cards.map((c, i) => (
-                        <div key={i} className="flex flex-col items-center gap-2">
-                            <Card card={c} size="md" />
-                            <button 
-                                onClick={() => onResolve({ selectedIndex: i })}
-                                className="bg-yellow-700 hover:bg-yellow-600 text-white px-4 py-1 rounded font-bold"
-                            >
-                                Select
-                            </button>
-                        </div>
-                    ))}
-                </div>
+                {filteredCards.length === 0 ? (
+                    <div className="text-gray-500 mb-8">No selectable cards.</div>
+                ) : (
+                    <div className="flex justify-center gap-4 flex-wrap">
+                        {filteredCards.map(({ card, originalIndex }) => (
+                            <div key={originalIndex} className="flex flex-col items-center gap-2">
+                                <Card card={card} size="md" />
+                                <button 
+                                    onClick={() => onResolve({ selectedIndex: originalIndex })}
+                                    className="bg-yellow-700 hover:bg-yellow-600 text-white px-4 py-1 rounded font-bold"
+                                >
+                                    Select
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                 {/* 選択候補がない場合のスキップボタン等が必要なら追加 */}
+                 {filteredCards.length === 0 && (
+                     <button onClick={() => onResolve({ selectedIndex: -1 })} className="mt-4 text-gray-500 underline">Cancel / Skip</button>
+                 )}
             </div>
         </div>
     );
@@ -303,29 +314,49 @@ export const SimpleChoiceModal: React.FC<ChoiceModalProps & { options: { label: 
     );
 };
 
-// 3. 手札複数選択モーダル (オボツカグラ覚醒後)
-export const HandSelectionModal: React.FC<ChoiceModalProps & { hand: CardType[] }> = ({ title, description, hand, onResolve }) => {
+// 3. 手札複数選択モーダル
+// 拡張: minSelect, maxSelect, filter機能追加
+interface HandSelectionModalProps extends ChoiceModalProps {
+    hand: CardType[];
+    minSelect?: number;
+    maxSelect?: number;
+    filter?: (c: CardType) => boolean;
+}
+
+export const HandSelectionModal: React.FC<HandSelectionModalProps> = ({ 
+    title, description, hand, onResolve, minSelect = 0, maxSelect = 99, filter 
+}) => {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     
+    // 選択可能なカードのみフィルタリング
+    const selectableCards = filter ? hand.filter(filter) : hand;
+    const unselectableCards = filter ? hand.filter(c => !filter(c)) : [];
+
     const toggleSelect = (id: string) => {
         if (selectedIds.includes(id)) {
             setSelectedIds(selectedIds.filter(sid => sid !== id));
         } else {
-            if (selectedIds.length < 2) {
+            if (selectedIds.length < maxSelect) {
                 setSelectedIds([...selectedIds, id]);
             }
         }
     };
+    
+    const isValid = selectedIds.length >= minSelect && selectedIds.length <= maxSelect;
 
     return (
         <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
              <div className="bg-gray-900 border-2 border-blue-600 rounded-lg max-w-4xl w-full p-6 text-center max-h-[90vh] overflow-y-auto">
                 <h3 className="text-2xl font-cinzel text-blue-400 mb-2">{title}</h3>
                 <p className="text-gray-300 mb-2">{description}</p>
-                <p className="text-sm text-blue-300 mb-6">Selected: {selectedIds.length} / 2</p>
+                <p className="text-sm text-blue-300 mb-6">
+                    Selected: {selectedIds.length} 
+                    {maxSelect < 99 && ` / ${maxSelect}`}
+                    {minSelect > 0 && ` (Min: ${minSelect})`}
+                </p>
                 
                 <div className="flex flex-wrap justify-center gap-3 mb-8">
-                    {hand.map((c) => {
+                    {selectableCards.map((c) => {
                         const isSelected = selectedIds.includes(c.id);
                         return (
                             <div key={c.id} className="relative cursor-pointer" onClick={() => toggleSelect(c.id)}>
@@ -340,37 +371,72 @@ export const HandSelectionModal: React.FC<ChoiceModalProps & { hand: CardType[] 
                             </div>
                         );
                     })}
+                    {/* 選択不可カードはグレーアウトして表示 */}
+                    {unselectableCards.map((c) => (
+                        <div key={c.id} className="relative opacity-30 grayscale cursor-not-allowed">
+                             <Card card={c} size="md" />
+                        </div>
+                    ))}
                 </div>
 
                 <button 
                     onClick={() => onResolve({ selectedIds })}
-                    className="bg-blue-700 hover:bg-blue-600 text-white px-8 py-3 rounded font-bold text-lg"
+                    disabled={!isValid}
+                    className={`px-8 py-3 rounded font-bold text-lg ${isValid ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
                 >
-                    Confirm ({selectedIds.length} cards)
+                    Confirm ({selectedIds.length})
                 </button>
              </div>
         </div>
     );
 };
 
-// 4. 天球の蒼：デッキ操作モーダル
-export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: CardType[] }> = ({ title, description, cards, onResolve }) => {
-    // 0: デッキに戻す(1番目), 1: デッキに戻す(2番目), -1: 血廻へ送る
-    // 初期状態はどちらも「デッキに戻す」で順不同
-    const [actions, setActions] = useState<number[]>(cards.map(() => 0)); // 0: Top, 1: Bottom(if 3+), -1: Circuit. 
-    // 今回は2枚なので、順番をつけるUIにする。
-    // { index: number, destination: 'circuit' | 'deck', order?: number }
-    
+// 4. 血廻カード選択モーダル
+export const CircuitSelectionModal: React.FC<ChoiceModalProps & { circuit: CardType[] }> = ({ title, description, circuit, onResolve }) => {
+    return (
+        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gray-900 border-2 border-purple-600 rounded-lg max-w-3xl w-full p-6 text-center max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-cinzel text-purple-400 mb-2">{title}</h3>
+                <p className="text-gray-300 mb-8">{description}</p>
+                
+                {circuit.length === 0 ? (
+                     <div className="text-gray-500 mb-8">No cards in Blood Circuit.</div>
+                ) : (
+                    <div className="flex flex-wrap justify-center gap-3 mb-8">
+                        {circuit.map((c, i) => (
+                            <div key={c.id} className="flex flex-col items-center gap-2">
+                                <Card card={c} size="md" />
+                                <button 
+                                    onClick={() => onResolve({ selectedIndex: i })}
+                                    className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-1 rounded font-bold"
+                                >
+                                    Select
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                 {circuit.length === 0 && (
+                     <button onClick={() => onResolve({ selectedIndex: -1 })} className="bg-gray-700 px-6 py-2 rounded text-gray-300">Close</button>
+                 )}
+            </div>
+        </div>
+    );
+};
+
+// 5. 天球の蒼・機翼の藍：デッキ操作モーダル
+export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: CardType[]; allowDiscard?: boolean }> = ({ 
+    title, description, cards, onResolve, allowDiscard = false 
+}) => {
+    // 0: デッキ, 1: 血廻, 2: 捨て札(allowDiscard時)
     const [circuitIndices, setCircuitIndices] = useState<number[]>([]);
-    const [deckIndices, setDeckIndices] = useState<number[]>(cards.map((_, i) => i)); // 初期は全部デッキ
+    const [deckIndices, setDeckIndices] = useState<number[]>(cards.map((_, i) => i)); 
 
     const toggleDestination = (index: number) => {
         if (circuitIndices.includes(index)) {
-            // Circuit -> Deck
             setCircuitIndices(circuitIndices.filter(i => i !== index));
             setDeckIndices([...deckIndices, index]);
         } else {
-            // Deck -> Circuit
             setDeckIndices(deckIndices.filter(i => i !== index));
             setCircuitIndices([...circuitIndices, index]);
         }
@@ -379,7 +445,6 @@ export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: Ca
     const moveDeckOrder = (index: number, direction: 'up' | 'down') => {
         const currentPos = deckIndices.indexOf(index);
         if (currentPos === -1) return;
-        
         const newDeckIndices = [...deckIndices];
         if (direction === 'up' && currentPos > 0) {
             [newDeckIndices[currentPos], newDeckIndices[currentPos - 1]] = [newDeckIndices[currentPos - 1], newDeckIndices[currentPos]];
@@ -440,3 +505,107 @@ export const BlueSphereDeckControlModal: React.FC<ChoiceModalProps & { cards: Ca
         </div>
     );
 };
+
+// 6. 機翼の藍用デッキ操作モーダル
+// 「デッキ上2枚を見て、1枚アーツ強化/破棄/戻す」
+export const IndigoDeckStrategyModal: React.FC<ChoiceModalProps & { cards: CardType[] }> = ({ title, description, cards, onResolve }) => {
+    // 状態: 各カードについて { action: 'upgrade' | 'discard' | 'deck', deckOrder: number }
+    // 簡略化: 
+    // - アーツカードのみ「Upgrade」ボタンを表示。
+    // - 全カードに「Discard」「Deck Top」トグル。
+    // - Deck Topの場合は順序指定。
+    
+    // 選択状態: { [cardIndex]: 'upgrade' | 'discard' | 'deck' }
+    const [actions, setActions] = useState< Record<number, 'upgrade' | 'discard' | 'deck'> >(
+        Object.fromEntries(cards.map((_, i) => [i, 'deck']))
+    );
+    // デッキに戻すカードの順序 (card indices)
+    const [deckOrder, setDeckOrder] = useState<number[]>(cards.map((_, i) => i));
+
+    const handleActionChange = (index: number, action: 'upgrade' | 'discard' | 'deck') => {
+        setActions(prev => ({ ...prev, [index]: action }));
+        
+        if (action === 'deck') {
+            if (!deckOrder.includes(index)) setDeckOrder([...deckOrder, index]);
+        } else {
+            setDeckOrder(deckOrder.filter(i => i !== index));
+        }
+    };
+
+    const moveOrder = (index: number, dir: 'up' | 'down') => {
+        const pos = deckOrder.indexOf(index);
+        if (pos === -1) return;
+        const newOrder = [...deckOrder];
+        if (dir === 'up' && pos > 0) {
+            [newOrder[pos], newOrder[pos-1]] = [newOrder[pos-1], newOrder[pos]];
+        } else if (dir === 'down' && pos < newOrder.length - 1) {
+            [newOrder[pos], newOrder[pos+1]] = [newOrder[pos+1], newOrder[pos]];
+        }
+        setDeckOrder(newOrder);
+    };
+
+    const getDeckIndex = (index: number) => deckOrder.indexOf(index);
+
+    return (
+        <div className="absolute inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 animate-fade-in">
+             <div className="bg-gray-900 border-2 border-indigo-600 rounded-lg max-w-4xl w-full p-6 text-center max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-cinzel text-indigo-400 mb-2">{title}</h3>
+                <p className="text-gray-300 mb-6">{description}</p>
+                
+                <div className="flex justify-center gap-6 mb-8 flex-wrap">
+                    {cards.map((card, i) => {
+                         const isArt = card.type === 'SLASH' || card.type === 'BLOOD';
+                         const currentAction = actions[i];
+                         const deckIdx = getDeckIndex(i);
+
+                         return (
+                             <div key={i} className="flex flex-col items-center gap-2 p-3 border border-gray-700 rounded bg-black/20">
+                                 <Card card={card} size="md" />
+                                 
+                                 <div className="flex flex-col gap-2 w-full">
+                                     {isArt && (
+                                         <button 
+                                            onClick={() => handleActionChange(i, 'upgrade')}
+                                            className={`text-xs px-2 py-1 rounded border ${currentAction === 'upgrade' ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}
+                                         >
+                                             Enhance & Discard
+                                         </button>
+                                     )}
+                                     <button 
+                                        onClick={() => handleActionChange(i, 'discard')}
+                                        className={`text-xs px-2 py-1 rounded border ${currentAction === 'discard' ? 'bg-red-900/50 border-red-500 text-red-200' : 'bg-gray-800 border-gray-600 text-gray-400'}`}
+                                     >
+                                         Discard
+                                     </button>
+                                     <button 
+                                        onClick={() => handleActionChange(i, 'deck')}
+                                        className={`text-xs px-2 py-1 rounded border ${currentAction === 'deck' ? 'bg-blue-900/50 border-blue-500 text-blue-200' : 'bg-gray-800 border-gray-600 text-gray-400'}`}
+                                     >
+                                         Return to Deck
+                                     </button>
+                                 </div>
+
+                                 {currentAction === 'deck' && (
+                                     <div className="flex items-center gap-2 mt-1">
+                                         <span className="text-[10px] text-gray-400">Order: {deckIdx + 1}</span>
+                                         <div className="flex gap-1">
+                                             <button onClick={() => moveOrder(i, 'up')} className="text-xs bg-gray-700 w-5 h-5 rounded">▲</button>
+                                             <button onClick={() => moveOrder(i, 'down')} className="text-xs bg-gray-700 w-5 h-5 rounded">▼</button>
+                                         </div>
+                                     </div>
+                                 )}
+                             </div>
+                         );
+                    })}
+                </div>
+
+                <button 
+                    onClick={() => onResolve({ actions, deckOrder })}
+                    className="bg-indigo-700 hover:bg-indigo-600 text-white px-8 py-3 rounded font-bold text-lg"
+                >
+                    Confirm Strategy
+                </button>
+             </div>
+        </div>
+    );
+}

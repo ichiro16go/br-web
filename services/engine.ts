@@ -9,20 +9,14 @@ import {
 } from '../constants/index';
 import { 
   drawCard, checkAwakening, resolveFieldEntryEffects, getRegaliaStats, executeRemembranceEnhancement, 
-  recalculateAttackTotal, resolveStartOfTurnEffects, performCleanup
+  recalculateAttackTotal, resolveStartOfTurnEffects, performCleanup, getUpgradedCard
 } from './gameLogic';
 import { decideCpuAction } from './ai';
 
-/**
- * ゲームステートを更新するメインリデューサー
- */
 export const gameReducer = (state: GameState, action: ActionType): GameState => {
   const cloneState = structuredClone(state) as GameState;
   
   switch (action.type) {
-    // ---------------------------------------------------------
-    // 必殺技発動 (Blood Recall)
-    // ---------------------------------------------------------
     case 'ACTIVATE_BLOOD_RECALL': {
         const { playerId } = action;
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
@@ -30,22 +24,17 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         const opponentKey = playerKey === 'player' ? 'cpu' : 'player';
         const opponent = cloneState.players[opponentKey];
 
-        if (!player.isRegaliaAwakened) {
-            cloneState.log.push(`[失敗] ${player.name}の神器はまだ覚醒していないため、必殺技は使えない。`);
-            return state;
-        }
-
         const recall = player.bloodRecall;
         if (!recall) return state;
 
-        if (player.bloodCircuit.length < recall.cost) return state;
+        if (player.bloodCircuit.length < recall.cost) {
+             cloneState.log.push(`[失敗] ${player.name}は必殺技コストが足りない (Circuit: ${player.bloodCircuit.length}/${recall.cost})。`);
+             return state;
+        }
 
-        // コスト支払い
         let paidCards: Card[] = player.bloodCircuit.splice(0, recall.cost);
-        
         cloneState.log.push(`${player.name} は必殺技「${recall.name}」を発動！ (血廻消費: ${recall.cost})`);
 
-        // 効果適用
         switch (recall.effectType) {
             case 'shiragane_mill_circuit':
                 const milled = player.deck.splice(0, 4);
@@ -152,11 +141,7 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         return cloneState;
     }
 
-    // ---------------------------------------------------------
-    // カードプレイ
-    // ---------------------------------------------------------
     case 'PLAY_CARD': {
-      // (省略なし、既存ロジックを維持)
       const { playerId, cardId } = action;
       const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
       const player = cloneState.players[playerKey];
@@ -175,7 +160,10 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
       
       cloneState.log.push(`${player.name} は ${card.name} をプレイ (ATK: ${card.attack}).`);
 
-      resolveFieldEntryEffects(player, card, cloneState.log);
+      const pending = resolveFieldEntryEffects(player, card, cloneState.log, true);
+      if (pending) {
+          cloneState.pendingResolution = pending;
+      }
       
       recalculateAttackTotal(player);
       if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
@@ -203,18 +191,12 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
       return cloneState;
     }
 
-    // ---------------------------------------------------------
-    // カード強化 (Craft)
-    // ---------------------------------------------------------
     case 'CRAFT_CARD': {
         const { playerId, recipeId, paymentCardIds } = action;
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
         const player = cloneState.players[playerKey];
         
-        if (player.remainingActions <= 0) {
-            cloneState.log.push(`[System] ${player.name} cannot craft (No Actions).`);
-            return state;
-        }
+        if (player.remainingActions <= 0) return state;
 
         const recipe = CRAFT_RECIPES.find(r => r.id === recipeId);
         if (!recipe) return state;
@@ -228,10 +210,7 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
             }
         }
 
-        if (removedCards.length !== paymentCardIds.length) {
-            cloneState.log.push(`[System] ${player.name} craft failed (Missing cards).`);
-            return state;
-        }
+        if (removedCards.length !== paymentCardIds.length) return state;
 
         player.bloodCircuit.push(...removedCards);
         const resultCard = recipe.createResult();
@@ -242,9 +221,6 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         return cloneState;
     }
 
-    // ---------------------------------------------------------
-    // 自傷アクション (Self Harm)
-    // ---------------------------------------------------------
     case 'SELF_HARM': {
         const { playerId } = action;
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
@@ -252,19 +228,13 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         const player = cloneState.players[playerKey];
         const opponent = cloneState.players[opponentKey];
         
-        if (!player.regalia || player.regalia.isTapped) {
-            cloneState.log.push(`[System] ${player.name} Self Harm failed (Already tapped or No Regalia).`);
-            return state;
-        }
+        if (!player.regalia || player.regalia.isTapped) return state;
 
         const stats = getRegaliaStats(player);
         if (!stats) return state;
 
         const damage = stats.selfHarmCost;
-        if (player.lifeCards.length < damage) {
-             cloneState.log.push(`[System] ${player.name} Self Harm failed (Not enough life cards: ${player.lifeCards.length}/${damage}).`);
-             return state;
-        }
+        if (player.lifeCards.length < damage) return state;
 
         if (player.activeBuffs.hihiirokaneConvert) {
             for(let i=0; i<damage; i++) player.bloodPool.push(createStarterBlood());
@@ -281,7 +251,14 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
 
         switch (player.regalia.id) {
             case 'regalia-shiragane':
-                executeRemembranceEnhancement(player, cloneState.log, (c) => c.level === 1, isAwakened ? 2 : 1);
+                if (playerKey === 'cpu') {
+                    executeRemembranceEnhancement(player, cloneState.log, (c) => c.level === 1, isAwakened ? 2 : 1);
+                } else {
+                    cloneState.pendingResolution = { 
+                        type: 'SHIRAGANE_HAND_SELECT', 
+                        count: isAwakened ? 2 : 1 
+                    };
+                }
                 break;
             case 'regalia-hihiirokane':
                 const cardToAdd = isAwakened ? createMasterySlashFlash() : createSlashFlash();
@@ -383,50 +360,37 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         return cloneState;
     }
 
-    // ---------------------------------------------------------
-    // 次のターン開始時効果処理 (再帰的呼び出し用)
-    // ---------------------------------------------------------
     case 'PROCESS_NEXT_TURN_START_EFFECT': {
         if (!state.pendingTurnStartEffects || state.pendingTurnStartEffects.length === 0) {
              return state;
         }
         
-        // 修正: 現在のターンプレイヤーを動的に取得
         const currentPlayerKey = state.turnPlayerId === 'p1' ? 'player' : 'cpu';
         const currentPlayer = cloneState.players[currentPlayerKey];
         const card = state.pendingTurnStartEffects[0];
-        // 改行を削除して判定を堅牢にする
         const desc = card.description.replace(/\n/g, '');
 
         if (desc.includes('手札にあるアーツカードを1枚選ぶ')) {
              if (state.turnPlayerId === 'p1') {
                  cloneState.pendingResolution = { type: 'BLUE_SPHERE_UPGRADE' };
              } else {
-                 // CPU: 自動で1枚目を選ぶ
-                 // 修正: cloneStateのプレイヤーオブジェクトを渡して更新させる
                  executeRemembranceEnhancement(currentPlayer, cloneState.log);
-                 
-                 // 処理完了としてキューから削除して次へ
                  cloneState.pendingTurnStartEffects.shift();
                  return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
              }
         }
         else if (desc.includes('デッキの上から2枚見る')) {
              if (state.turnPlayerId === 'p1') {
-                 // 修正: currentPlayerのデッキを操作する
                  const deckTop2 = currentPlayer.deck.splice(-2);
                  cloneState.pendingResolution = { type: 'BLUE_SPHERE_DECK_CONTROL', cards: deckTop2 };
              } else {
-                 // CPU: 何もしない（今回はログのみ）
                  cloneState.log.push(`[天球の蒼] CPUはデッキトップを確認した。`);
                  cloneState.pendingTurnStartEffects.shift();
                  return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
              }
         }
         
-        // 万が一、どちらにもマッチせずループに陥るのを防ぐためのガード
         if (cloneState.pendingTurnStartEffects.length > 0 && cloneState.pendingTurnStartEffects[0] === card) {
-             // 未処理のまま残っていたら強制的に削除
              cloneState.pendingTurnStartEffects.shift();
              return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
         }
@@ -434,9 +398,6 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         return cloneState;
     }
 
-    // ---------------------------------------------------------
-    // 選択ポップアップの解決処理
-    // ---------------------------------------------------------
     case 'RESOLVE_PENDING_ACTION': {
         const { payload } = action;
         const player = cloneState.players.player;
@@ -445,7 +406,6 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         if (!pending) return state;
 
         if (pending.type === 'APOITAKARA_SELECTION') {
-             // ... (既存処理)
              const selectedIndex = payload.selectedIndex as number;
              const cards = pending.cards;
              const kept = cards[selectedIndex];
@@ -454,8 +414,29 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
              player.discard.push(...discarded);
              cloneState.log.push(`${player.name}はアポイタカラの効果で「${kept.name}」を手札に加え、残りを捨てた。`);
         } 
+        else if (pending.type === 'SHIRAGANE_HAND_SELECT') {
+            const ids = payload.selectedIds as string[]; 
+            const targetCards: Card[] = [];
+            const remainingHand: Card[] = [];
+            
+            for (const c of player.hand) {
+                if (ids.includes(c.id)) targetCards.push(c);
+                else remainingHand.push(c);
+            }
+            player.hand = remainingHand;
+
+            for (const target of targetCards) {
+                const upgraded = getUpgradedCard(target);
+                if (upgraded) {
+                    player.bloodCircuit.push(target);
+                    player.hand.push(upgraded);
+                    cloneState.log.push(`${player.name}はシラガネの効果で${target.name}を${upgraded.name}に強化した。`);
+                } else {
+                    player.hand.push(target);
+                }
+            }
+        }
         else if (pending.type === 'OBOTSU_BASE_CHOICE') {
-             // ... (既存処理)
              if (payload.choice === 'fragment') {
                  player.hand.push(createObotsuFragment());
                  cloneState.log.push(`${player.name}はオボツカグラの効果で「オボツの欠片」を得た。`);
@@ -466,7 +447,6 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
              }
         }
         else if (pending.type === 'OBOTSU_AWAKENED_HAND_SELECT') {
-             // ... (既存処理)
              const ids = payload.selectedIds as string[];
              const toCircuit: Card[] = [];
              const newHand: Card[] = [];
@@ -483,12 +463,10 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
                  cloneState.log.push(`${player.name}は手札を${toCircuit.length}枚血廻へ送り、同数引いた。`);
              }
         }
-        // --- 天球の蒼: 追憶強化 ---
         else if (pending.type === 'BLUE_SPHERE_UPGRADE') {
              const cardId = payload.cardId;
              const cardIndex = player.hand.findIndex(c => c.id === cardId);
              if (cardIndex !== -1) {
-                 // 対象を1枚だけ強化するカスタムロジック
                  const targetCard = player.hand[cardIndex];
                  const upgraded = getUpgradedCard(targetCard);
                  if (upgraded) {
@@ -496,36 +474,122 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
                      player.bloodCircuit.push(targetCard);
                      player.hand.push(upgraded);
                      cloneState.log.push(`[天球の蒼] ${player.name}は${targetCard.name}を${upgraded.name}に強化した。`);
-                 } else {
-                     cloneState.log.push(`[天球の蒼] 強化対象外または強化不可だった。`);
                  }
              }
-             // 処理が終わったらキューから削除して次へ
              if (cloneState.pendingTurnStartEffects) cloneState.pendingTurnStartEffects.shift();
         }
-        // --- 天球の蒼: デッキ操作 ---
         else if (pending.type === 'BLUE_SPHERE_DECK_CONTROL') {
-            // payload: { toCircuitIndices: number[], orderIndices: number[] }
-            // orderIndicesは、戻すカードのインデックス順序
             const cards = pending.cards;
             const toCircuitIdxs = payload.toCircuitIndices as number[];
             const orderIdxs = payload.orderIndices as number[];
             
             const toCircuit = cards.filter((_, i) => toCircuitIdxs.includes(i));
-            const toDeck = orderIdxs.map(i => cards[i]); // 順番通りに取得
+            const toDeck = orderIdxs.map(i => cards[i]); 
 
             player.bloodCircuit.push(...toCircuit);
-            player.deck.push(...toDeck); // deck.pushは末尾追加＝デッキトップ？ BloodRecallは pop() でドローしてるので push はトップ
+            player.deck.push(...toDeck); 
             
             cloneState.log.push(`[天球の蒼] ${toCircuit.length}枚を血廻へ、${toDeck.length}枚をデッキトップに戻した。`);
             
             if (cloneState.pendingTurnStartEffects) cloneState.pendingTurnStartEffects.shift();
         }
+        // --- 機翼の藍 Actions ---
+        else if (pending.type === 'INDIGO_HAND_TO_CIRCUIT') {
+            const ids = payload.selectedIds as string[];
+            const toCircuit: Card[] = [];
+            const newHand: Card[] = [];
+            for (const c of player.hand) {
+                if (ids.includes(c.id)) toCircuit.push(c);
+                else newHand.push(c);
+            }
+            player.hand = newHand;
+            player.bloodCircuit.push(...toCircuit);
+            cloneState.log.push(`[機翼の藍] ${toCircuit.length}枚を手札から血廻へ送った。`);
+        }
+        else if (pending.type === 'INDIGO_DECK_STRATEGY') {
+            const { actions, deckOrder } = payload as { actions: Record<number, 'upgrade' | 'discard' | 'deck'>, deckOrder: number[] };
+            const cards = pending.cards;
+            const toDeck: Card[] = [];
+            
+            deckOrder.forEach(idx => {
+                toDeck.push(cards[idx]);
+            });
 
-        // 解消
+            cards.forEach((card, idx) => {
+                const actionType = actions[idx];
+                if (actionType === 'upgrade') {
+                    const upgraded = getUpgradedCard(card);
+                    if (upgraded) {
+                        player.bloodCircuit.push(card);
+                        player.discard.push(upgraded);
+                        cloneState.log.push(`[機翼の藍] ${card.name}を強化して捨て札に送った。`);
+                    } else {
+                        player.discard.push(card);
+                    }
+                } else if (actionType === 'discard') {
+                    player.discard.push(card);
+                    cloneState.log.push(`[機翼の藍] ${card.name}を捨て札に送った。`);
+                }
+            });
+
+            player.deck.push(...toDeck);
+            if (toDeck.length > 0) cloneState.log.push(`[機翼の藍] ${toDeck.length}枚をデッキトップに戻した。`);
+        }
+        else if (pending.type === 'INDIGO_UPGRADE_BLOOD') {
+             const ids = payload.selectedIds as string[];
+             if(ids.length > 0) {
+                 const cardId = ids[0];
+                 const cardIndex = player.hand.findIndex(c => c.id === cardId);
+                 if (cardIndex !== -1) {
+                     const targetCard = player.hand[cardIndex];
+                     const upgraded = getUpgradedCard(targetCard);
+                     if (upgraded) {
+                         player.hand.splice(cardIndex, 1);
+                         player.bloodCircuit.push(targetCard);
+                         player.hand.push(upgraded);
+                         cloneState.log.push(`[機翼の藍] ${targetCard.name}を${upgraded.name}に強化した。`);
+                     }
+                 }
+             }
+        }
+        else if (pending.type === 'INDIGO_HAND_TO_CIRCUIT_DRAW') {
+            const ids = payload.selectedIds as string[];
+            if (ids.length > 0) {
+                const toCircuit: Card[] = [];
+                const newHand: Card[] = [];
+                for (const c of player.hand) {
+                    if (ids.includes(c.id)) toCircuit.push(c);
+                    else newHand.push(c);
+                }
+                player.hand = newHand;
+                player.bloodCircuit.push(...toCircuit);
+                
+                // 送ったら1ドロー
+                const drawn = drawCard(player, 1);
+                player.deck = drawn.deck;
+                player.hand = drawn.hand;
+                player.discard = drawn.discard;
+                cloneState.log.push(`[機翼の藍] ${toCircuit.length}枚を血廻へ送り、1枚引いた。`);
+            }
+        }
+        else if (pending.type === 'INDIGO_CIRCUIT_TO_HAND') {
+            const index = payload.selectedIndex as number;
+            if (index !== -1 && index < player.bloodCircuit.length) {
+                const card = player.bloodCircuit[index];
+                player.bloodCircuit.splice(index, 1);
+                player.hand.push(card);
+                
+                // 加えたら2ドロー
+                const drawn = drawCard(player, 2);
+                player.deck = drawn.deck;
+                player.hand = drawn.hand;
+                player.discard = drawn.discard;
+                cloneState.log.push(`[機翼の藍] 血廻から${card.name}を手札に加え、2枚引いた。`);
+            }
+        }
+
         delete cloneState.pendingResolution;
         
-        // 未処理のターン開始時効果があれば次を実行
         if (cloneState.pendingTurnStartEffects && cloneState.pendingTurnStartEffects.length > 0) {
             return gameReducer(cloneState, { type: 'PROCESS_NEXT_TURN_START_EFFECT' });
         }
@@ -533,31 +597,18 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         return cloneState;
     }
 
-    // ---------------------------------------------------------
-    // カード購入 (Recall)
-    // ---------------------------------------------------------
     case 'RECALL_CARD': {
-        // ... (既存処理)
         const { playerId, pileIndex } = action;
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
         const player = cloneState.players[playerKey];
 
-        if (player.remainingActions <= 0) {
-             cloneState.log.push(`[System] ${player.name} cannot recall (No Actions).`);
-             return state;
-        }
+        if (player.remainingActions <= 0) return state;
 
         const pile = cloneState.market.recallPiles[pileIndex];
-        if (!pile || pile.length === 0) {
-            cloneState.log.push(`[System] ${player.name} recall failed (Pile Empty).`);
-            return state;
-        }
+        if (!pile || pile.length === 0) return state;
 
         const marketCard = pile[pile.length - 1];
-        if (player.bloodPool.length < marketCard.cost) {
-            cloneState.log.push(`[System] ${player.name} recall failed (Not enough blood: ${player.bloodPool.length}/${marketCard.cost}).`);
-            return state; 
-        }
+        if (player.bloodPool.length < marketCard.cost) return state; 
         
         const paid = player.bloodPool.splice(0, marketCard.cost);
         pile.pop();
@@ -566,7 +617,10 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         recalculateAttackTotal(player);
         if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
         
-        resolveFieldEntryEffects(player, marketCard, cloneState.log);
+        const pending = resolveFieldEntryEffects(player, marketCard, cloneState.log, false);
+        if (pending) {
+            cloneState.pendingResolution = pending;
+        }
         
         recalculateAttackTotal(player);
         if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
@@ -576,11 +630,7 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         return cloneState;
     }
 
-    // ---------------------------------------------------------
-    // ターンパス処理
-    // ---------------------------------------------------------
     case 'PASS_TURN': {
-        // ... (既存処理)
         const { playerId } = action;
         const playerKey = playerId === state.players.player.id ? 'player' : 'cpu';
         cloneState.players[playerKey].hasPassed = true;
@@ -595,16 +645,11 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         return cloneState;
     }
 
-    // ---------------------------------------------------------
-    // 戦闘解決 (Blood Battle)
-    // ---------------------------------------------------------
     case 'RESOLVE_BATTLE': {
-        // ... (既存処理)
         cloneState.phase = Phase.BloodBattle;
         const p1 = cloneState.players.player;
         const p2 = cloneState.players.cpu;
 
-        // メインフェイズで使い切れなかった余剰ブラッドを破棄
         p1.bloodPool = [];
         p2.bloodPool = [];
 
@@ -659,9 +704,6 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         return gameReducer(cloneState, { type: 'CLEANUP' });
     }
 
-    // ---------------------------------------------------------
-    // クリーンアップ
-    // ---------------------------------------------------------
     case 'CLEANUP': {
         cloneState.phase = Phase.Cleanup;
         
@@ -685,11 +727,9 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         cloneState.turnPlayerId = cloneState.firstPlayerId;
         cloneState.log.push(`--- ターン終了. 新しいラウンドの開始. 先攻: ${cloneState.firstPlayerId === 'p1' ? 'Player' : 'CPU'} ---`);
 
-        // 3. ターン開始時効果（残留カードによる効果）
         const nextPlayerKey = cloneState.turnPlayerId === cloneState.players.player.id ? 'player' : 'cpu';
         const nextPlayer = cloneState.players[nextPlayerKey];
         
-        // 修正: キューを取得して保存し、処理を開始する
         const pendingEffects = resolveStartOfTurnEffects(nextPlayer, cloneState.log);
         if (pendingEffects.length > 0) {
             cloneState.pendingTurnStartEffects = pendingEffects;
@@ -699,44 +739,33 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
         return cloneState;
     }
 
-    // ---------------------------------------------------------
-    // CPUアクション実行
-    // ---------------------------------------------------------
     case 'CPU_ACTION': {
         if (state.turnPlayerId !== state.players.cpu.id || state.phase !== Phase.Main) return state;
         
         const actionToTake = decideCpuAction(cloneState);
-        
-        // Debug: アクション内容をログに出力（デバッグ用）
         let debugMsg = `[CPU] Thinking: ${actionToTake.type}`;
         if (actionToTake.type === 'CRAFT_CARD') debugMsg += ` (Recipe: ${actionToTake.recipeId})`;
         if (actionToTake.type === 'RECALL_CARD') debugMsg += ` (Pile: ${actionToTake.pileIndex})`;
         if (actionToTake.type === 'PLAY_CARD') debugMsg += ` (Card: ${actionToTake.cardId})`;
         cloneState.log.push(debugMsg);
 
-        // 再帰的にアクションを実行し、状態が変化したか確認する
-        // 注意: Reducerは純粋関数であるべきだが、デバッグ目的でログ出力を行う
         const nextState = gameReducer(cloneState, actionToTake);
 
-        // 進捗判定: ログの行数が増えている、またはフェーズ/ターンプレイヤーが変わっている
         const hasProgressed = nextState.log.length > cloneState.log.length || 
                               nextState.phase !== cloneState.phase ||
                               nextState.turnPlayerId !== cloneState.turnPlayerId;
 
         if (!hasProgressed) {
-             // アクション失敗（状態が変わらなかった）
              const failureCount = (state.cpuFailureCount || 0) + 1;
              nextState.cpuFailureCount = failureCount;
              nextState.log.push(`[System] CPU Action Failed (Count: ${failureCount})`);
 
              if (failureCount >= 3) {
                  nextState.log.push(`[System] CPU Stuck. Forcing PASS.`);
-                 // 無限ループ防止のため強制パス
                  return gameReducer(nextState, { type: 'PASS_TURN', playerId: state.players.cpu.id });
              }
              return nextState;
         } else {
-             // 成功したらカウンタリセット
              nextState.cpuFailureCount = 0;
              return nextState;
         }
@@ -745,15 +774,4 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
     default:
       return state;
   }
-};
-
-// ヘルパー関数: 再定義 (gameLogicからimport不可のためここで定義またはimport)
-// 注意: engine.ts内ではexecuteRemembranceEnhancement等を使うため、importが必要ですが、
-// 上部でimport済みであることを前提としています。
-const getUpgradedCard = (card: Card): Card | null => {
-    if (card.name === '斬撃') return createSlashFlash();
-    if (card.name === '斬撃一閃') return createMasterySlashFlash();
-    if (card.name === '赤血') return createRedScarletBlood();
-    if (card.name === '赤緋血') return createTorrentRedStarBlood();
-    return null;
 };

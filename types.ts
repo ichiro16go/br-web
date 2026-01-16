@@ -107,10 +107,16 @@ export interface PlayerState {
  */
 export type PendingResolution = 
   | { type: 'APOITAKARA_SELECTION'; cards: Card[] }
+  | { type: 'SHIRAGANE_HAND_SELECT'; count: number } // シラガネ用
   | { type: 'OBOTSU_BASE_CHOICE' }
   | { type: 'OBOTSU_AWAKENED_HAND_SELECT' }
   | { type: 'BLUE_SPHERE_UPGRADE' }
-  | { type: 'BLUE_SPHERE_DECK_CONTROL'; cards: Card[] };
+  | { type: 'BLUE_SPHERE_DECK_CONTROL'; cards: Card[] }
+  | { type: 'INDIGO_HAND_TO_CIRCUIT' } // 機翼の藍: 任意枚数血廻へ
+  | { type: 'INDIGO_DECK_STRATEGY'; cards: Card[] } // 機翼の藍: デッキトップ2枚操作
+  | { type: 'INDIGO_UPGRADE_BLOOD' } // 機翼の藍: Lv1血アーツ強化
+  | { type: 'INDIGO_HAND_TO_CIRCUIT_DRAW' } // 機翼の藍: 2枚まで血廻へ→ドロー
+  | { type: 'INDIGO_CIRCUIT_TO_HAND' }; // 機翼の藍: 血廻から手札へ
 
 /**
  * ゲーム全体の状態管理
