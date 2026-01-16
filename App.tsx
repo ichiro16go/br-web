@@ -313,7 +313,7 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
   const remainingActions = state.players.player.remainingActions;
 
   return (
-    <div className="h-screen w-full bg-[#1a0b0b] text-gray-200 flex overflow-hidden font-sans select-none">
+    <div className="h-screen w-full bg-[#1a0b0b] text-gray-200 flex overflow-hidden font-sans select-none relative">
       
       <GameLog 
         logs={state.log} 
@@ -380,24 +380,32 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
 
       </div>
 
-      <div className={`transition-all duration-300 ease-in-out relative flex flex-col z-20 ${isMarketOpen ? 'w-28 md:w-56 border-l border-red-900/30 bg-black/80' : 'w-0'}`}>
-         {/* Toggle Button: Positioned higher to avoid overlap */}
-         <button
-            onClick={() => setIsMarketOpen(!isMarketOpen)}
-            className="absolute top-20 -left-6 w-6 h-16 bg-red-950/80 border-y border-l border-red-900/50 rounded-l flex items-center justify-center text-red-200 hover:bg-red-900 z-50 cursor-pointer"
-         >
-             <span className="text-[10px] md:text-xs font-cinzel font-bold flex flex-col items-center gap-1">
-                 {isMarketOpen ? <span>&rsaquo;</span> : <span>&lsaquo;</span>}
-             </span>
-         </button>
-         
-         <div className="w-full h-full overflow-hidden">
-            <Market 
-                recallPiles={state.market.recallPiles} 
-                onRecall={handleRecall} 
-                canRecall={isPlayerTurn && remainingActions > 0} 
-                playerPoolCount={state.players.player.bloodPool.length}
-            />
+      <div className="flex pointer-events-none absolute right-0 top-0 bottom-0 h-full z-[60] flex-row justify-end items-stretch">
+         <div className={`
+             pointer-events-auto
+             relative h-full bg-black/90 backdrop-blur-sm 
+             transition-all duration-300 ease-in-out
+             flex flex-col
+             ${isMarketOpen ? 'w-28 md:w-56 border-l border-red-900/50 shadow-2xl' : 'w-0 border-none'}
+         `}>
+             {/* Toggle Button: Positioned on the left side of the panel */}
+             <button
+                onClick={() => setIsMarketOpen(!isMarketOpen)}
+                className="absolute top-20 -left-6 w-6 h-16 bg-red-950/90 border-y border-l border-red-900/50 rounded-l flex items-center justify-center text-red-200 hover:bg-red-900 z-50 cursor-pointer shadow-[-2px_0_5px_rgba(0,0,0,0.5)]"
+             >
+                 <span className="text-[10px] md:text-xs font-cinzel font-bold flex flex-col items-center gap-1">
+                     {isMarketOpen ? <span>&rsaquo;</span> : <span>&lsaquo;</span>}
+                 </span>
+             </button>
+             
+             <div className="w-full h-full overflow-hidden min-w-[7rem] md:min-w-[14rem]">
+                <Market 
+                    recallPiles={state.market.recallPiles} 
+                    onRecall={handleRecall} 
+                    canRecall={isPlayerTurn && remainingActions > 0} 
+                    playerPoolCount={state.players.player.bloodPool.length}
+                />
+             </div>
          </div>
       </div>
 
