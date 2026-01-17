@@ -265,6 +265,12 @@ export const handleResolveBattle = (state: GameState): GameState => {
             loser.bloodPool.push(...damagedCards);
             loser.life -= actualDamage;
             checkAwakening(loser, cloneState.log);
+            // 【修正】凱旋チェックの前に、ゲーム終了判定を行う
+            if (loser.life <= 0) {
+                cloneState.phase = Phase.GameOver;
+                return cloneState;
+           }
+
 
             // --- 超克の桜【凱旋】チェック ---
             const hasCherry = winner.field.some(c => c.name.includes('超克の桜'));
