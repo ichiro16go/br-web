@@ -42,12 +42,12 @@ export const EntranceScreen: React.FC<EntranceScreenProps> = ({ onStartSolo, onS
           </button>
 
           <button 
-            onClick={() => {}} 
-            disabled
-            className="group relative bg-gray-900 border-2 border-gray-700 p-6 rounded-lg opacity-60 cursor-not-allowed"
+            onClick={onStartVersus} 
+            className="group relative bg-gradient-to-r from-blue-950 to-black border-2 border-blue-800 p-6 rounded-lg overflow-hidden hover:border-blue-500 transition-all duration-300 hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:scale-105"
           >
-            <h2 className="text-2xl font-cinzel font-bold text-gray-500 relative z-10 flex items-center justify-center gap-3">
-              <span>👥</span> VERSUS MODE <span className="text-xs font-sans tracking-normal border border-gray-600 px-2 py-1 rounded">Coming Soon</span>
+            <div className="absolute inset-0 bg-blue-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 skew-x-12"></div>
+            <h2 className="text-2xl font-cinzel font-bold text-blue-100 group-hover:text-white relative z-10 flex items-center justify-center gap-3">
+              <span>👥</span> VERSUS MODE <span className="text-xs opacity-60 font-sans tracking-normal bg-blue-900/50 px-2 py-1 rounded">Online</span>
             </h2>
           </button>
 

@@ -69,6 +69,18 @@
         animation: shake-hard 0.5s ease-in-out infinite;
       }
 
+      /* Turn Banner Animation */
+      @keyframes turn-banner-seq {
+        0% { opacity: 0; transform: scale(0.8) translateY(20px); filter: blur(4px); }
+        15% { opacity: 1; transform: scale(1.1) translateY(0); filter: blur(0); }
+        25% { transform: scale(1); }
+        80% { opacity: 1; transform: scale(1); filter: blur(0); }
+        100% { opacity: 0; transform: scale(1.2); filter: blur(8px); }
+      }
+      .animate-turn-banner {
+        animation: turn-banner-seq 2s ease-in-out forwards;
+      }
+
       /* General Fade In */
       @keyframes fadeIn {
         from { opacity: 0; }

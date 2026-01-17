@@ -72,7 +72,7 @@ export const FieldSection: React.FC<FieldSectionProps> = ({ player, isOpponent, 
                  </Zone>
             </div>
   
-            <div className={`h-24 hidden lg:flex gap-2 ${isOpponent ? 'order-1' : 'order-2'}`}>
+            <div className={`h-24 hidden md:flex gap-2 ${isOpponent ? 'order-1' : 'order-2'}`}>
                 <div className="flex-1">
                     <Zone title="プール (Cards)" className="h-full bg-red-950/10 border-red-900/30" contentClassName="flex items-center justify-start overflow-hidden">
                         <div className="flex -space-x-8 px-4 overflow-x-auto w-full custom-scrollbar py-2 items-center">

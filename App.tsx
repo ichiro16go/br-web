@@ -11,7 +11,9 @@ import {
     BurialPaymentModal, FieldSelectionModal
 } from './components/GameModals';
 import { EntranceScreen } from './components/EntranceScreen';
+import { LobbyScreen } from './components/LobbyScreen';
 import { GameLog } from './components/GameLog';
+import { TurnNotification } from './components/TurnNotification'; // 追加
 import { getCardStyles } from './utils/cardStyles';
 
 // セットアップ関数を変更：事前に選ばれたセットを受け取る
@@ -24,6 +26,22 @@ const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string, sel
   const cpuRecalls = BLOOD_RECALLS.filter(br => br.regaliaId === cpuRegalia.id);
   const cpuBloodRecall = cpuRecalls[Math.floor(Math.random() * cpuRecalls.length)];
 
+  // 先攻後攻の決定: 神器の年代が古い（数字が小さい）方が先攻
+  let firstPlayerId = 'p1';
+  let startReason = '';
+
+  if (p1Regalia.year < cpuRegalia.year) {
+      firstPlayerId = 'p1';
+      startReason = `Player's Regalia is older (${p1Regalia.year} < ${cpuRegalia.year}).`;
+  } else if (cpuRegalia.year < p1Regalia.year) {
+      firstPlayerId = 'cpu';
+      startReason = `CPU's Regalia is older (${cpuRegalia.year} < ${p1Regalia.year}).`;
+  } else {
+      // 年代が同じ場合はランダム
+      firstPlayerId = Math.random() < 0.5 ? 'p1' : 'cpu';
+      startReason = `Regalia years are equal (${p1Regalia.year}). Random choice.`;
+  }
+
   // ここでのランダム選出は廃止し、引数を使用する
   const recallPiles = selectedSets.map(set => {
       const cards = set.cards.map(tmpl => createRecallCard(tmpl));
@@ -32,8 +50,8 @@ const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string, sel
 
   return {
     phase: Phase.Main,
-    turnPlayerId: 'p1', 
-    firstPlayerId: 'p1',
+    turnPlayerId: firstPlayerId, 
+    firstPlayerId: firstPlayerId,
     players: {
       player: createPlayer('p1', 'Player 1', true, p1Regalia, selectedBloodRecallId),
       cpu: createPlayer('cpu', 'CPU', false, cpuRegalia, cpuBloodRecall.id)
@@ -44,16 +62,18 @@ const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string, sel
       artsDeckBlood: []
     },
     log: [
-        'Game Start!', 
-        `Player 1 uses ${p1Regalia.name}`, 
-        `CPU uses ${cpuRegalia.name}`,
+        '--- Game Start ---', 
+        `Player uses ${p1Regalia.name} (${p1Regalia.year})`, 
+        `CPU uses ${cpuRegalia.name} (${cpuRegalia.year})`,
+        `[System] ${startReason}`,
+        `First Turn: ${firstPlayerId === 'p1' ? 'Player' : 'CPU'}`,
         `Market Colors: ${selectedSets.map(s => s.colorName).join(', ')}`
     ],
     cpuFailureCount: 0
   };
 };
 
-type AppView = 'entrance' | 'regalia_select' | 'blood_recall_select' | 'game';
+type AppView = 'entrance' | 'lobby' | 'regalia_select' | 'blood_recall_select' | 'game';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>('entrance');
@@ -62,9 +82,26 @@ const App: React.FC = () => {
   
   // 今回のゲームで使用するリコールセット（5色）
   const [activeRecallSets, setActiveRecallSets] = useState<RecallColorSet[]>([]);
+  
+  // オンライン対戦用状態
+  const [isOnline, setIsOnline] = useState(false);
+  const [roomId, setRoomId] = useState<string | null>(null);
 
   // ソロモード開始時にリコールセットをランダムに決定する
   const handleStartSolo = () => {
+      setIsOnline(false);
+      const shuffledSets = [...RECALL_SETS].sort(() => Math.random() - 0.5);
+      const selected = shuffledSets.slice(0, 5);
+      setActiveRecallSets(selected);
+      setCurrentView('regalia_select');
+  };
+
+  // オンラインモードのマッチング完了時
+  const handleMatchMade = (room: string, isHost: boolean) => {
+      setIsOnline(true);
+      setRoomId(room);
+      // NOTE: 本来はここで相手との同期処理や、セット選択の同期を行う
+      // 今回はモックとしてソロと同じくランダムにセットを決めて進む
       const shuffledSets = [...RECALL_SETS].sort(() => Math.random() - 0.5);
       const selected = shuffledSets.slice(0, 5);
       setActiveRecallSets(selected);
@@ -75,7 +112,16 @@ const App: React.FC = () => {
       return (
           <EntranceScreen 
             onStartSolo={handleStartSolo}
-            onStartVersus={() => { /* Future Impl */ }}
+            onStartVersus={() => setCurrentView('lobby')}
+          />
+      );
+  }
+
+  if (currentView === 'lobby') {
+      return (
+          <LobbyScreen 
+            onBack={() => setCurrentView('entrance')}
+            onMatchMade={handleMatchMade}
           />
       );
   }
@@ -91,6 +137,9 @@ const App: React.FC = () => {
         </button>
 
         <h1 className="text-4xl font-cinzel text-red-600 mb-2 mt-8">Regalia Selection</h1>
+        {isOnline && roomId && (
+            <p className="text-blue-400 font-bold mb-1">ONLINE MATCH - ROOM: {roomId}</p>
+        )}
         <p className="text-gray-400 mb-8">Review the market forecast and choose your weapon.</p>
 
         {/* --- Market Forecast (市場予報) --- */}
@@ -258,16 +307,31 @@ const App: React.FC = () => {
 const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [isMarketOpen, setIsMarketOpen] = useState(true);
+  const [showTurnNotify, setShowTurnNotify] = useState(false); // ターン通知表示フラグ
 
-  // ... (useEffect, Handlers 省略... 変更なし)
+  // ターン変更を検知して通知を表示
+  useEffect(() => {
+    // Mainフェイズかつターンプレイヤーが変わった時、または初期ロード時
+    // Phase.Main 以外 (Battle, Cleanup) でもターンIDが変わる可能性があるが、
+    // プレイヤーが行動開始するのは Main フェイズなので、ここで通知するのが自然
+    if (state.phase === Phase.Main) {
+        setShowTurnNotify(true);
+        const timer = setTimeout(() => {
+            setShowTurnNotify(false);
+        }, 2000); // アニメーション時間(2s)に合わせて消去
+        return () => clearTimeout(timer);
+    }
+  }, [state.turnPlayerId, state.phase]);
+
+  // CPU Action Trigger
   useEffect(() => {
     if (state.phase === Phase.Main && state.turnPlayerId === 'cpu') {
       const timer = setTimeout(() => {
         dispatch({ type: 'CPU_ACTION' });
-      }, 1500); 
+      }, 2500); // 通知とかぶらないよう少し遅延を増やす (1500 -> 2500)
       return () => clearTimeout(timer);
     }
-  }, [state]);
+  }, [state.phase, state.turnPlayerId, state.log.length]); // 依存配列修正: state.log.lengthを追加して連続行動を可能に
 
   const handlePlayCard = (cardId: string) => {
     if (state.turnPlayerId !== 'p1' || state.phase !== Phase.Main) return;
@@ -315,6 +379,9 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
   return (
     <div className="h-screen w-full bg-[#1a0b0b] text-gray-200 flex overflow-hidden font-sans select-none relative">
       
+      {/* ターン開始通知 */}
+      <TurnNotification playerId={state.turnPlayerId} isVisible={showTurnNotify} />
+
       <GameLog 
         logs={state.log} 
         turnPlayerId={state.turnPlayerId} 
