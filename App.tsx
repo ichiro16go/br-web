@@ -11,7 +11,6 @@ import {
     BurialPaymentModal, FieldSelectionModal
 } from './components/GameModals';
 import { EntranceScreen } from './components/EntranceScreen';
-import { LobbyScreen } from './components/LobbyScreen';
 import { GameLog } from './components/GameLog';
 import { TurnNotification } from './components/TurnNotification'; // 追加
 import { getCardStyles } from './utils/cardStyles';
@@ -73,7 +72,7 @@ const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string, sel
   };
 };
 
-type AppView = 'entrance' | 'lobby' | 'regalia_select' | 'blood_recall_select' | 'game';
+type AppView = 'entrance' | 'regalia_select' | 'blood_recall_select' | 'game';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>('entrance');
@@ -82,26 +81,9 @@ const App: React.FC = () => {
   
   // 今回のゲームで使用するリコールセット（5色）
   const [activeRecallSets, setActiveRecallSets] = useState<RecallColorSet[]>([]);
-  
-  // オンライン対戦用状態
-  const [isOnline, setIsOnline] = useState(false);
-  const [roomId, setRoomId] = useState<string | null>(null);
 
   // ソロモード開始時にリコールセットをランダムに決定する
   const handleStartSolo = () => {
-      setIsOnline(false);
-      const shuffledSets = [...RECALL_SETS].sort(() => Math.random() - 0.5);
-      const selected = shuffledSets.slice(0, 5);
-      setActiveRecallSets(selected);
-      setCurrentView('regalia_select');
-  };
-
-  // オンラインモードのマッチング完了時
-  const handleMatchMade = (room: string, isHost: boolean) => {
-      setIsOnline(true);
-      setRoomId(room);
-      // NOTE: 本来はここで相手との同期処理や、セット選択の同期を行う
-      // 今回はモックとしてソロと同じくランダムにセットを決めて進む
       const shuffledSets = [...RECALL_SETS].sort(() => Math.random() - 0.5);
       const selected = shuffledSets.slice(0, 5);
       setActiveRecallSets(selected);
@@ -112,16 +94,7 @@ const App: React.FC = () => {
       return (
           <EntranceScreen 
             onStartSolo={handleStartSolo}
-            onStartVersus={() => setCurrentView('lobby')}
-          />
-      );
-  }
-
-  if (currentView === 'lobby') {
-      return (
-          <LobbyScreen 
-            onBack={() => setCurrentView('entrance')}
-            onMatchMade={handleMatchMade}
+            onStartVersus={() => { /* Future Impl */ }}
           />
       );
   }
@@ -137,9 +110,6 @@ const App: React.FC = () => {
         </button>
 
         <h1 className="text-4xl font-cinzel text-red-600 mb-2 mt-8">Regalia Selection</h1>
-        {isOnline && roomId && (
-            <p className="text-blue-400 font-bold mb-1">ONLINE MATCH - ROOM: {roomId}</p>
-        )}
         <p className="text-gray-400 mb-8">Review the market forecast and choose your weapon.</p>
 
         {/* --- Market Forecast (市場予報) --- */}
