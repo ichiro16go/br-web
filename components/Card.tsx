@@ -21,8 +21,8 @@ export const Card: React.FC<CardProps> = ({ card, onClick, size = 'md', isFaceDo
   const sizeClasses = {
     xs: 'w-10 h-14 text-[0.4rem]',
     sm: 'w-16 h-24 text-[0.5rem]',
-    md: 'w-24 h-36 text-xs',
-    lg: 'w-32 h-48 text-sm',
+    md: 'w-20 h-32 text-xs',
+    lg: 'w-24 h-36 text-sm',
   };
 
   // ユーティリティからスタイルを取得
