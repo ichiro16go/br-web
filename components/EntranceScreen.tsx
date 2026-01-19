@@ -53,16 +53,17 @@ export const EntranceScreen: React.FC<EntranceScreenProps> = ({ onStartSolo, onS
               <span>⚔️</span> SOLO MODE <span className="text-xs opacity-60 font-sans tracking-normal bg-red-900/50 px-2 py-1 rounded">vs CPU</span>
             </h2>
           </button>
-
+{/* 
           <button 
+            disabled
             onClick={onStartVersus} 
-            className="group relative bg-gradient-to-r from-blue-950 to-black border-2 border-blue-800 p-5 rounded-lg overflow-hidden hover:border-blue-500 transition-all duration-300 hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:scale-105"
+            className=" group relative bg-gradient-to-r from-blue-950 to-black border-2 border-blue-800 p-5 rounded-lg overflow-hidden hover:border-blue-500 transition-all duration-300 hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:scale-105"
           >
             <div className="absolute inset-0 bg-blue-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 skew-x-12"></div>
             <h2 className="text-xl font-cinzel font-bold text-blue-100 group-hover:text-white relative z-10 flex items-center justify-center gap-3">
               <span>👥</span> VERSUS MODE <span className="text-xs opacity-60 font-sans tracking-normal bg-blue-900/50 px-2 py-1 rounded">Online</span>
             </h2>
-          </button>
+          </button> */}
 
           <div className="h-px w-full bg-gradient-to-r from-transparent via-red-900/50 to-transparent my-2"></div>
 
