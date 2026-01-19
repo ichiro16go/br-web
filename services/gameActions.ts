@@ -1,3 +1,4 @@
+
 import { GameState, Card, CardType, PlayerState, Phase } from '../types';
 import { 
   createStarterBlood, createSlashFlash, createMasterySlashFlash, 
@@ -249,24 +250,36 @@ export const handleResolveBattle = (state: GameState): GameState => {
         damage = p2.attackTotal - p1.attackTotal;
     }
 
+    // BattleResultをセット（演出用）
+    cloneState.lastBattleResult = {
+        winnerId: winner ? winner.id : null,
+        damage: 0, // 軽減前/後どちらを表示するかだが、ここでは実ダメージ（軽減前）を計算ベースにするか、軽減後を表示するか
+        p1Atk: p1.attackTotal,
+        p2Atk: p2.attackTotal
+    };
+
     if (winner && loser) {
+        // ダメージ軽減処理
+        let actualDamage = damage;
         if (loser.activeBuffs.damageReduction && loser.activeBuffs.damageReduction > 0) {
             const originalDamage = damage;
-            damage = Math.max(0, damage - loser.activeBuffs.damageReduction);
-            cloneState.log.push(`${loser.name}はダメージを軽減した (${originalDamage} -> ${damage})`);
+            actualDamage = Math.max(0, damage - loser.activeBuffs.damageReduction);
+            cloneState.log.push(`${loser.name}はダメージを軽減した (${originalDamage} -> ${actualDamage})`);
             loser.activeBuffs.damageReduction = 0;
         }
 
-        const actualDamage = Math.min(damage, loser.lifeCards.length);
+        // BattleResultのダメージを更新
+        cloneState.lastBattleResult.damage = actualDamage;
+
+        const damageToTake = Math.min(actualDamage, loser.lifeCards.length);
         
-        if (actualDamage > 0) {
-            cloneState.log.push(`${winner.name} の勝利! ${damage} ダメージを与える.`);
-            const damagedCards = loser.lifeCards.splice(0, actualDamage);
+        if (damageToTake > 0) {
+            cloneState.log.push(`${winner.name} の勝利! ${actualDamage} ダメージを与える.`);
+            const damagedCards = loser.lifeCards.splice(0, damageToTake);
             loser.bloodPool.push(...damagedCards);
-            loser.life -= actualDamage;
+            loser.life -= damageToTake;
             checkAwakening(loser, cloneState.log);
 
-            // 【修正】凱旋チェックの前に、ゲーム終了判定を行う
             if (loser.life <= 0) {
                  cloneState.phase = Phase.GameOver;
                  return cloneState;
@@ -280,7 +293,8 @@ export const handleResolveBattle = (state: GameState): GameState => {
                     if (winner.isHuman) {
                         cloneState.firstPlayerId = winner.id; 
                         cloneState.pendingResolution = { type: 'CHERRY_VICTORY_SELECT' };
-                        return cloneState; 
+                        // pendingResolutionがある場合でも、一旦stateを返して演出を挟む。
+                        // UI側で演出終了後にpendingResolutionを処理するフローが必要。
                     } else {
                         // CPUの凱旋自動処理
                         const targets = slashInField.sort((a, b) => a.level - b.level).slice(0, 2);
@@ -321,6 +335,7 @@ export const handleResolveBattle = (state: GameState): GameState => {
             return cloneState;
     }
 
+    // 即座にCLEANUPに遷移せず、演出表示のためにBLOOD_BATTLEフェイズのまま返す
     return cloneState;
 };
 
@@ -330,6 +345,9 @@ export const handleResolveBattle = (state: GameState): GameState => {
 export const handleCleanup = (state: GameState): GameState => {
     const cloneState = structuredClone(state) as GameState;
     cloneState.phase = Phase.Cleanup;
+    
+    // バトル結果演出をクリア
+    delete cloneState.lastBattleResult;
     
     [cloneState.players.player, cloneState.players.cpu].forEach(p => {
         if (p.activeBuffs.usuganeBurn) {

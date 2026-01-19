@@ -123,6 +123,16 @@ export type PendingResolution =
   | { type: 'CHERRY_VICTORY_SELECT' }; // 超克の桜【凱旋】: 場の斬アーツ選択
 
 /**
+ * バトル結果の定義
+ */
+export interface BattleResult {
+    winnerId: string | null; // 引き分けの場合はnull
+    damage: number;
+    p1Atk: number;
+    p2Atk: number;
+}
+
+/**
  * ゲーム全体の状態管理
  */
 export interface GameState {
@@ -145,6 +155,9 @@ export interface GameState {
   // ターン開始時に順次解決すべき効果を持つカードのキュー
   pendingTurnStartEffects?: Card[];
   
+  // 直前のバトル結果（演出用）
+  lastBattleResult?: BattleResult;
+
   // AIデバッグ・ループ防止用
   cpuFailureCount?: number;
 

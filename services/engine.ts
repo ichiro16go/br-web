@@ -156,14 +156,9 @@ export const gameReducer = (state: GameState, action: ActionType): GameState => 
                     return nextState;
                 }
             }
-
-            // ゲーム終了でなければクリーンナップへ
-            if (nextState.phase !== Phase.GameOver && nextState.phase === Phase.BloodBattle) {
-                if (nextState.pendingResolution) {
-                    return nextState;
-                }
-                return gameReducer(nextState, { type: 'CLEANUP' });
-            }
+            
+            // 通常時: 演出のためにPhase.BloodBattleのまま停止する。
+            // 自動的にCLEANUPには遷移しない。UI側でハンドリングする。
             return nextState;
         }
 

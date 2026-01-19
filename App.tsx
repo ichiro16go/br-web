@@ -14,7 +14,8 @@ import { EntranceScreen } from './components/EntranceScreen';
 import { LobbyScreen } from './components/LobbyScreen';
 import { GameLog } from './components/GameLog';
 import { TurnNotification } from './components/TurnNotification'; 
-import { TutorialOverlay } from './components/TutorialOverlay'; // 追加
+import { TutorialOverlay } from './components/TutorialOverlay';
+import { BattleResultOverlay } from './components/BattleResultOverlay'; // 追加
 import { getCardStyles } from './utils/cardStyles';
 
 // セットアップ関数を変更：事前に選ばれたセットを受け取る
@@ -107,8 +108,6 @@ const App: React.FC = () => {
   const handleMatchMade = (room: string, isHost: boolean) => {
       setIsOnline(true);
       setRoomId(room);
-      // NOTE: 本来はここで相手との同期処理や、セット選択の同期を行う
-      // 今回はモックとしてソロと同じくランダムにセットを決めて進む
       const shuffledSets = [...RECALL_SETS].sort(() => Math.random() - 0.5);
       const selected = shuffledSets.slice(0, 5);
       setActiveRecallSets(selected);
@@ -135,7 +134,6 @@ const App: React.FC = () => {
   }
 
   if (currentView === 'tutorial') {
-      // チュートリアル用の特別View
       return <GameView initialState={setupTutorialGame()} isTutorial={true} />;
   }
 
@@ -162,7 +160,6 @@ const App: React.FC = () => {
             </h3>
             <div className="flex flex-wrap justify-center gap-3">
                 {activeRecallSets.map((set, idx) => {
-                    // 色ごとのスタイルを取得するためのダミーカード情報
                     const dummyCard = { name: set.cards[0].name, type: CardType.Recall } as any;
                     const styles = getCardStyles(dummyCard);
                     
@@ -320,11 +317,9 @@ const App: React.FC = () => {
 const GameView: React.FC<{ initialState: GameState, isTutorial?: boolean }> = ({ initialState, isTutorial = false }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [isMarketOpen, setIsMarketOpen] = useState(true);
-  const [showTurnNotify, setShowTurnNotify] = useState(false); // ターン通知表示フラグ
+  const [showTurnNotify, setShowTurnNotify] = useState(false); 
 
-  // ターン変更を検知して通知を表示
   useEffect(() => {
-    // Mainフェイズかつターンプレイヤーが変わった時、または初期ロード時
     if (state.phase === Phase.Main) {
         setShowTurnNotify(true);
         const timer = setTimeout(() => {
@@ -334,7 +329,6 @@ const GameView: React.FC<{ initialState: GameState, isTutorial?: boolean }> = ({
     }
   }, [state.turnPlayerId, state.phase]);
 
-  // CPU Action Trigger (チュートリアル以外)
   useEffect(() => {
     if (!isTutorial && state.phase === Phase.Main && state.turnPlayerId === 'cpu') {
       const timer = setTimeout(() => {
@@ -342,7 +336,6 @@ const GameView: React.FC<{ initialState: GameState, isTutorial?: boolean }> = ({
       }, 2500); 
       return () => clearTimeout(timer);
     }
-    // チュートリアル: CPUはパスのみ (Engine側で処理)
     if (isTutorial && state.phase === Phase.Main && state.turnPlayerId === 'cpu') {
         const timer = setTimeout(() => {
             dispatch({ type: 'CPU_ACTION' });
@@ -398,12 +391,28 @@ const GameView: React.FC<{ initialState: GameState, isTutorial?: boolean }> = ({
   const isPlayerTurn = state.turnPlayerId === 'p1' && state.phase === Phase.Main;
   const remainingActions = state.players.player.remainingActions;
 
+  // バトル結果演出完了時の処理
+  const handleBattleResultComplete = () => {
+      // 演出完了後、まだCLEANUPに進んでいなければ進める
+      if (state.phase === Phase.BloodBattle && !state.pendingResolution) {
+          dispatch({ type: 'CLEANUP' });
+      }
+  };
+
   return (
     <div className="h-screen w-full bg-[#1a0b0b] text-gray-200 flex overflow-hidden font-sans select-none relative">
       
       {/* チュートリアルオーバーレイ */}
       {isTutorial && state.tutorialStep !== undefined && (
           <TutorialOverlay step={state.tutorialStep} onNext={handleTutorialNext} />
+      )}
+
+      {/* バトル結果演出 (チュートリアル以外で表示、ただしチュートリアルの場合はOverlayと競合しないよう調整) */}
+      {state.phase === Phase.BloodBattle && state.lastBattleResult && !isTutorial && (
+          <BattleResultOverlay 
+              result={state.lastBattleResult} 
+              onComplete={handleBattleResultComplete} 
+          />
       )}
 
       {/* ターン開始通知 */}
@@ -427,6 +436,7 @@ const GameView: React.FC<{ initialState: GameState, isTutorial?: boolean }> = ({
                 onActivateBloodRecall={() => {}}
                 isOpponent={true}
                 phase={state.phase}
+                isMarketOpen={isMarketOpen}
               />
         </div>
 
@@ -440,10 +450,12 @@ const GameView: React.FC<{ initialState: GameState, isTutorial?: boolean }> = ({
                 onActivateBloodRecall={handleActivateBloodRecall}
                 isOpponent={false}
                 phase={state.phase}
+                isMarketOpen={isMarketOpen}
               />
         </div>
 
-        <div className="absolute bottom-4 right-4 flex gap-2 z-30">
+        {/* END Turn Button */}
+        <div className={`absolute bottom-4 right-4 flex gap-2 z-30 transition-transform duration-300 ease-in-out ${isMarketOpen ? '-translate-x-28 md:-translate-x-56' : ''}`}>
              {state.phase !== Phase.GameOver && (
                   <button 
                     onClick={handlePass}
@@ -478,7 +490,6 @@ const GameView: React.FC<{ initialState: GameState, isTutorial?: boolean }> = ({
              flex flex-col
              ${isMarketOpen ? 'w-28 md:w-56 border-l border-red-900/50 shadow-2xl' : 'w-0 border-none'}
          `}>
-             {/* Toggle Button: Positioned on the left side of the panel */}
              <button
                 onClick={() => setIsMarketOpen(!isMarketOpen)}
                 className="absolute top-20 -left-6 w-6 h-16 bg-red-950/90 border-y border-l border-red-900/50 rounded-l flex items-center justify-center text-red-200 hover:bg-red-900 z-50 cursor-pointer shadow-[-2px_0_5px_rgba(0,0,0,0.5)]"
@@ -500,6 +511,11 @@ const GameView: React.FC<{ initialState: GameState, isTutorial?: boolean }> = ({
       </div>
       
       {state.pendingResolution && (
+          // showBattleResult中はモーダルを隠す、あるいは重ねる。
+          // BattleResultOverlayのz-indexは90, モーダルは100なのでモーダルが上に来る
+          // 凱旋処理などで被る場合があるが、pendingResolutionが存在する場合はBattleResultOverlayのonCompleteを待たずに処理が進むわけではない。
+          // handleBattleResultCompleteでCLEANUPに進むが、pendingResolutionがある場合はCLEANUPに行かないため、
+          // 演出 -> モーダル という順序で見えるはず。
           <>
             {/* ... (既存のモーダル分岐は維持) ... */}
             {state.pendingResolution.type === 'APOITAKARA_SELECTION' && (

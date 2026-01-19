@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { PlayerState, RegaliaCard, Phase, Card as CardType } from '../types';
+import { PlayerState, RegaliaCard, Phase, Card as CardType } from '../../types';
 import { RegaliaModal, CraftModal, CardListModal, DeckListModal, CardDetailModal } from './GameModals';
 import { IdentitySection } from './player/IdentitySection';
 import { ResourceSection } from './player/ResourceSection';
@@ -14,8 +15,8 @@ interface PlayerAreaProps {
   onCraft: (recipeId: string, paymentCardIds: string[]) => void;
   onActivateBloodRecall: () => void;
   isOpponent?: boolean;
-  phase: Phase;
-  isMarketOpen?: boolean;
+  phase: Phase; 
+  isMarketOpen?: boolean; // 追加
 }
 
 /**
@@ -58,7 +59,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                 player={player}
                 isCurrentUser={isCurrentUser}
                 isOpponent={isOpponent}
-                phase={phase} // Phaseを追加
+                phase={phase} 
                 onRegaliaClick={handleRegaliaClick}
                 onActivateBloodRecall={onActivateBloodRecall}
             />
@@ -78,7 +79,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                 isOpponent={isOpponent}
                 phase={phase}
                 setViewingCard={setViewingCard}
-                isMarketOpen={isMarketOpen}
+                isMarketOpen={isMarketOpen} // 伝播
             />
         </div>
 
@@ -103,7 +104,7 @@ export const PlayerArea: React.FC<PlayerAreaProps> = ({
                 isCurrentUser={isCurrentUser}
                 onClose={() => setSelectedRegalia(null)}
                 onSelfHarm={handleConfirmSelfHarm}
-                onActivateBloodRecall={onActivateBloodRecall} // Handlerを追加
+                onActivateBloodRecall={onActivateBloodRecall} 
             />
         )}
 

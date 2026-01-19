@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PlayerState, Phase, Card as CardType } from '../../types';
 import { Card } from '../Card';
@@ -9,9 +10,10 @@ interface FieldSectionProps {
     isOpponent: boolean;
     phase: Phase;
     setViewingCard: (card: CardType) => void;
+    isMarketOpen?: boolean; // 追加
 }
 
-export const FieldSection: React.FC<FieldSectionProps> = ({ player, isOpponent, phase, setViewingCard }) => {
+export const FieldSection: React.FC<FieldSectionProps> = ({ player, isOpponent, phase, setViewingCard, isMarketOpen = false }) => {
     // フィールドのカードを行ごとに分割（6枚区切り）
     const fieldRows: CardType[][] = [];
     for (let i = 0; i < player.field.length; i += 6) {
@@ -27,7 +29,8 @@ export const FieldSection: React.FC<FieldSectionProps> = ({ player, isOpponent, 
                       className="flex-1 bg-black/20 border-red-500/20 overflow-hidden !p-1 relative"
                       contentClassName="w-full h-full relative"
                  >
-                      <div className="absolute top-1 right-1 z-20 flex flex-col items-end pointer-events-none">
+                      {/* HP / ATK Display: マーケットが開いているときは左へスライド */}
+                      <div className={`absolute top-1 right-1 z-20 flex flex-col items-end pointer-events-none transition-transform duration-300 ease-in-out ${isMarketOpen ? '-translate-x-28 md:-translate-x-56' : ''}`}>
                           <div className="bg-black/60 backdrop-blur-sm border border-red-500/20 rounded p-1.5 flex flex-col gap-1 shadow-lg">
                               <div className="flex items-center justify-end gap-2">
                                   <span className="text-[10px] text-red-500 font-bold tracking-wider">LIFE</span>
