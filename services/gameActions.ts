@@ -179,20 +179,33 @@ export const handleRecallCard = (state: GameState, playerId: string, pileIndex: 
     player.bloodPool.splice(0, marketCard.cost);
     pile.pop();
     
-    player.field.push(marketCard); 
-    recalculateAttackTotal(player);
-    if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
-    
-    const pending = resolveFieldEntryEffects(player, marketCard, cloneState.log, false);
-    if (pending) {
-        cloneState.pendingResolution = pending;
+    // 「無間の紫」の特殊処理: 購入時、場ではなく相手のデッキトップへ行く
+    if (marketCard.name.includes('無間の紫')) {
+        const opponentKey = playerKey === 'player' ? 'cpu' : 'player';
+        const opponent = cloneState.players[opponentKey];
+        opponent.deck.push(marketCard);
+        
+        recalculateAttackTotal(player); // 念のため再計算（変更なし）
+        if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
+
+        cloneState.log.push(`${player.name} は ${marketCard.name} を購入 (Cost: ${marketCard.cost}, Act-1)。効果により相手のデッキトップへ送られた。`);
+    } else {
+        player.field.push(marketCard); 
+        recalculateAttackTotal(player);
+        if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
+        
+        const pending = resolveFieldEntryEffects(player, marketCard, cloneState.log, false);
+        if (pending) {
+            cloneState.pendingResolution = pending;
+        }
+        
+        recalculateAttackTotal(player);
+        if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
+
+        cloneState.log.push(`${player.name} は ${marketCard.name} を購入 (Cost: ${marketCard.cost}, Act-1).`);
     }
-    
-    recalculateAttackTotal(player);
-    if (player.activeBuffs.permanentAtk) player.attackTotal += player.activeBuffs.permanentAtk;
 
     player.remainingActions -= 1;
-    cloneState.log.push(`${player.name} は ${marketCard.name} を購入 (Cost: ${marketCard.cost}, Act-1).`);
     return cloneState;
 };
 
@@ -404,6 +417,7 @@ export const handleProcessNextTurnStartEffect = (state: GameState): GameState =>
 
             if (state.turnPlayerId === 'p1') {
                 cloneState.pendingResolution = { type: 'BLUE_SPHERE_UPGRADE' };
+                return cloneState; 
             } else {
                 executeRemembranceEnhancement(currentPlayer, cloneState.log);
                 cloneState.pendingTurnStartEffects.shift();
@@ -420,6 +434,7 @@ export const handleProcessNextTurnStartEffect = (state: GameState): GameState =>
             if (state.turnPlayerId === 'p1') {
                 const deckTop2 = currentPlayer.deck.splice(-2);
                 cloneState.pendingResolution = { type: 'BLUE_SPHERE_DECK_CONTROL', cards: deckTop2 };
+                return cloneState; 
             } else {
                 cloneState.log.push(`[天球の蒼] CPUはデッキトップを確認した。`);
                 cloneState.pendingTurnStartEffects.shift();
