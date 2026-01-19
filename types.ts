@@ -147,6 +147,10 @@ export interface GameState {
   
   // AIデバッグ・ループ防止用
   cpuFailureCount?: number;
+
+  // チュートリアルモード用
+  isTutorial?: boolean;
+  tutorialStep?: number;
 }
 
 /**
@@ -164,4 +168,5 @@ export type ActionType =
   | { type: 'CLEANUP' }                                              // クリーンアップ処理
   | { type: 'CPU_ACTION' }                                           // AI思考ルーチン実行
   | { type: 'RESOLVE_PENDING_ACTION'; payload: any }                 // 選択ポップアップの結果解決
-  | { type: 'PROCESS_NEXT_TURN_START_EFFECT' };                      // 次のターン開始時効果を処理
+  | { type: 'PROCESS_NEXT_TURN_START_EFFECT' }                       // 次のターン開始時効果を処理
+  | { type: 'TUTORIAL_NEXT_STEP' };                                  // チュートリアルのステップを進める

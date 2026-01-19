@@ -1,6 +1,6 @@
 import React, { useReducer, useEffect, useState, useRef } from 'react';
 import { gameReducer } from './services/engine';
-import { createPlayer } from './services/gameLogic';
+import { createPlayer, setupTutorialGame } from './services/gameLogic';
 import { GameState, Phase, CardType } from './types';
 import { REGALIA_LIST, RECALL_SETS, createRecallCard, BLOOD_RECALLS, getRegaliaTheme, RecallColorSet } from './constants/index';
 import { PlayerArea } from './components/PlayerArea';
@@ -11,8 +11,10 @@ import {
     BurialPaymentModal, FieldSelectionModal
 } from './components/GameModals';
 import { EntranceScreen } from './components/EntranceScreen';
+import { LobbyScreen } from './components/LobbyScreen';
 import { GameLog } from './components/GameLog';
-import { TurnNotification } from './components/TurnNotification'; // 追加
+import { TurnNotification } from './components/TurnNotification'; 
+import { TutorialOverlay } from './components/TutorialOverlay'; // 追加
 import { getCardStyles } from './utils/cardStyles';
 
 // セットアップ関数を変更：事前に選ばれたセットを受け取る
@@ -72,7 +74,7 @@ const setupGame = (selectedRegaliaId: string, selectedBloodRecallId: string, sel
   };
 };
 
-type AppView = 'entrance' | 'regalia_select' | 'blood_recall_select' | 'game';
+type AppView = 'entrance' | 'lobby' | 'regalia_select' | 'blood_recall_select' | 'game' | 'tutorial';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>('entrance');
@@ -81,9 +83,32 @@ const App: React.FC = () => {
   
   // 今回のゲームで使用するリコールセット（5色）
   const [activeRecallSets, setActiveRecallSets] = useState<RecallColorSet[]>([]);
+  
+  // オンライン対戦用状態
+  const [isOnline, setIsOnline] = useState(false);
+  const [roomId, setRoomId] = useState<string | null>(null);
 
   // ソロモード開始時にリコールセットをランダムに決定する
   const handleStartSolo = () => {
+      setIsOnline(false);
+      const shuffledSets = [...RECALL_SETS].sort(() => Math.random() - 0.5);
+      const selected = shuffledSets.slice(0, 5);
+      setActiveRecallSets(selected);
+      setCurrentView('regalia_select');
+  };
+
+  // チュートリアル開始
+  const handleStartTutorial = () => {
+      setIsOnline(false);
+      setCurrentView('tutorial');
+  };
+
+  // オンラインモードのマッチング完了時
+  const handleMatchMade = (room: string, isHost: boolean) => {
+      setIsOnline(true);
+      setRoomId(room);
+      // NOTE: 本来はここで相手との同期処理や、セット選択の同期を行う
+      // 今回はモックとしてソロと同じくランダムにセットを決めて進む
       const shuffledSets = [...RECALL_SETS].sort(() => Math.random() - 0.5);
       const selected = shuffledSets.slice(0, 5);
       setActiveRecallSets(selected);
@@ -94,9 +119,24 @@ const App: React.FC = () => {
       return (
           <EntranceScreen 
             onStartSolo={handleStartSolo}
-            onStartVersus={() => { /* Future Impl */ }}
+            onStartVersus={() => setCurrentView('lobby')}
+            onStartTutorial={handleStartTutorial}
           />
       );
+  }
+
+  if (currentView === 'lobby') {
+      return (
+          <LobbyScreen 
+            onBack={() => setCurrentView('entrance')}
+            onMatchMade={handleMatchMade}
+          />
+      );
+  }
+
+  if (currentView === 'tutorial') {
+      // チュートリアル用の特別View
+      return <GameView initialState={setupTutorialGame()} isTutorial={true} />;
   }
 
   if (currentView === 'regalia_select') {
@@ -110,6 +150,9 @@ const App: React.FC = () => {
         </button>
 
         <h1 className="text-4xl font-cinzel text-red-600 mb-2 mt-8">Regalia Selection</h1>
+        {isOnline && roomId && (
+            <p className="text-blue-400 font-bold mb-1">ONLINE MATCH - ROOM: {roomId}</p>
+        )}
         <p className="text-gray-400 mb-8">Review the market forecast and choose your weapon.</p>
 
         {/* --- Market Forecast (市場予報) --- */}
@@ -274,7 +317,7 @@ const App: React.FC = () => {
   return null;
 };
 
-const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
+const GameView: React.FC<{ initialState: GameState, isTutorial?: boolean }> = ({ initialState, isTutorial = false }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [isMarketOpen, setIsMarketOpen] = useState(true);
   const [showTurnNotify, setShowTurnNotify] = useState(false); // ターン通知表示フラグ
@@ -282,26 +325,31 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
   // ターン変更を検知して通知を表示
   useEffect(() => {
     // Mainフェイズかつターンプレイヤーが変わった時、または初期ロード時
-    // Phase.Main 以外 (Battle, Cleanup) でもターンIDが変わる可能性があるが、
-    // プレイヤーが行動開始するのは Main フェイズなので、ここで通知するのが自然
     if (state.phase === Phase.Main) {
         setShowTurnNotify(true);
         const timer = setTimeout(() => {
             setShowTurnNotify(false);
-        }, 2000); // アニメーション時間(2s)に合わせて消去
+        }, 2000); 
         return () => clearTimeout(timer);
     }
   }, [state.turnPlayerId, state.phase]);
 
-  // CPU Action Trigger
+  // CPU Action Trigger (チュートリアル以外)
   useEffect(() => {
-    if (state.phase === Phase.Main && state.turnPlayerId === 'cpu') {
+    if (!isTutorial && state.phase === Phase.Main && state.turnPlayerId === 'cpu') {
       const timer = setTimeout(() => {
         dispatch({ type: 'CPU_ACTION' });
-      }, 2500); // 通知とかぶらないよう少し遅延を増やす (1500 -> 2500)
+      }, 2500); 
       return () => clearTimeout(timer);
     }
-  }, [state.phase, state.turnPlayerId, state.log.length]); // 依存配列修正: state.log.lengthを追加して連続行動を可能に
+    // チュートリアル: CPUはパスのみ (Engine側で処理)
+    if (isTutorial && state.phase === Phase.Main && state.turnPlayerId === 'cpu') {
+        const timer = setTimeout(() => {
+            dispatch({ type: 'CPU_ACTION' });
+        }, 1000);
+        return () => clearTimeout(timer);
+    }
+  }, [state.phase, state.turnPlayerId, state.log.length, isTutorial]); 
 
   const handlePlayCard = (cardId: string) => {
     if (state.turnPlayerId !== 'p1' || state.phase !== Phase.Main) return;
@@ -343,12 +391,21 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
       dispatch({ type: 'RESOLVE_PENDING_ACTION', payload });
   };
 
+  const handleTutorialNext = () => {
+      dispatch({ type: 'TUTORIAL_NEXT_STEP' });
+  };
+
   const isPlayerTurn = state.turnPlayerId === 'p1' && state.phase === Phase.Main;
   const remainingActions = state.players.player.remainingActions;
 
   return (
     <div className="h-screen w-full bg-[#1a0b0b] text-gray-200 flex overflow-hidden font-sans select-none relative">
       
+      {/* チュートリアルオーバーレイ */}
+      {isTutorial && state.tutorialStep !== undefined && (
+          <TutorialOverlay step={state.tutorialStep} onNext={handleTutorialNext} />
+      )}
+
       {/* ターン開始通知 */}
       <TurnNotification playerId={state.turnPlayerId} isVisible={showTurnNotify} />
 
@@ -387,11 +444,7 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
         </div>
 
         <div className="absolute bottom-4 right-4 flex gap-2 z-30">
-             {state.phase === Phase.GameOver ? (
-                  <button onClick={() => window.location.reload()} className="bg-white text-black px-6 py-2 font-bold rounded hover:bg-gray-200 shadow-lg">
-                      Play Again
-                  </button>
-              ) : (
+             {state.phase !== Phase.GameOver && (
                   <button 
                     onClick={handlePass}
                     disabled={!isPlayerTurn}
@@ -445,7 +498,7 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
              </div>
          </div>
       </div>
-
+      
       {state.pendingResolution && (
           <>
             {/* ... (既存のモーダル分岐は維持) ... */}
@@ -578,8 +631,6 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
                     onResolve={handleResolvePending}
                 />
             )}
-
-            {/* --- 新規追加: 超克の桜【凱旋】 モーダル --- */}
             {state.pendingResolution.type === 'CHERRY_VICTORY_SELECT' && (
                 <FieldSelectionModal 
                     title="Cherry: Victory"
@@ -594,18 +645,55 @@ const GameView: React.FC<{ initialState: GameState }> = ({ initialState }) => {
       )}
 
       {state.phase === Phase.GameOver && (
-          <div className="absolute inset-0 bg-black/90 z-[60] flex flex-col items-center justify-center animate-fade-in">
-              <h1 className="text-6xl font-cinzel text-red-600 mb-4 animate-pulse">GAME OVER</h1>
-              <p className="text-2xl mb-8 text-gray-300">
-                  {state.players.player.life <= 0 && state.players.cpu.life <= 0 
-                    ? "Mutual Destruction" 
-                    : state.players.player.life <= 0 
-                        ? "You Died" 
-                        : "Victory"}
-              </p>
-              <button onClick={() => window.location.reload()} className="bg-red-700 px-8 py-4 rounded text-xl hover:bg-red-600 border border-red-500 shadow-lg text-white">
-                  Return to Title
-              </button>
+          <div className="absolute inset-0 bg-black/95 z-[60] flex flex-col items-center justify-center animate-fade-in">
+              {(() => {
+                  const pLife = state.players.player.life;
+                  const cLife = state.players.cpu.life;
+                  let title = "";
+                  let sub = "";
+                  let colorClass = "";
+                  let bgGlow = "";
+
+                  if (pLife <= 0 && cLife <= 0) {
+                      title = "DRAW";
+                      sub = "Mutual Destruction";
+                      colorClass = "text-gray-400";
+                  } else if (pLife <= 0) {
+                      title = "YOU LOSE...";
+                      sub = "Defeat";
+                      colorClass = "text-blue-300";
+                      bgGlow = "shadow-[0_0_100px_rgba(30,58,138,0.3)]";
+                  } else {
+                      title = "YOU WIN!!";
+                      sub = "Victory";
+                      colorClass = "text-yellow-500";
+                      bgGlow = "shadow-[0_0_100px_rgba(234,179,8,0.3)]";
+                  }
+
+                  return (
+                      <>
+                        <div className={`rounded-full ${bgGlow} mb-8`}>
+                            <h1 className={`text-6xl md:text-8xl font-cinzel font-bold ${colorClass} tracking-widest animate-pulse`}>
+                                {title}
+                            </h1>
+                        </div>
+                        <p className="text-xl md:text-2xl mb-12 text-gray-300 font-cinzel tracking-wider">
+                            {sub}
+                        </p>
+                        <button 
+                            onClick={() => window.location.reload()} 
+                            className={`
+                                px-10 py-4 rounded text-xl font-bold uppercase tracking-widest transition-all hover:scale-105
+                                ${pLife > 0 && cLife <= 0 
+                                    ? 'bg-yellow-700 hover:bg-yellow-600 text-white border border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' 
+                                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600'}
+                            `}
+                        >
+                            {isTutorial ? "Finish Tutorial" : "Return to Title"}
+                        </button>
+                      </>
+                  );
+              })()}
           </div>
       )}
     </div>

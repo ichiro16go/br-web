@@ -1,12 +1,14 @@
+
 import React, { useState } from 'react';
 import { Card } from './Card'; // 装飾用にCardコンポーネントを使用（必須ではないが雰囲気作りに）
 
 interface EntranceScreenProps {
   onStartSolo: () => void;
   onStartVersus: () => void;
+  onStartTutorial: () => void; // 追加
 }
 
-export const EntranceScreen: React.FC<EntranceScreenProps> = ({ onStartSolo, onStartVersus }) => {
+export const EntranceScreen: React.FC<EntranceScreenProps> = ({ onStartSolo, onStartVersus, onStartTutorial }) => {
   const [showRules, setShowRules] = useState(false);
 
   return (
@@ -20,7 +22,7 @@ export const EntranceScreen: React.FC<EntranceScreenProps> = ({ onStartSolo, onS
 
       <div className="z-10 flex flex-col items-center max-w-4xl w-full">
         {/* タイトルロゴエリア */}
-        <div className="mb-16 text-center animate-fade-in-down">
+        <div className="mb-12 text-center animate-fade-in-down">
           <h1 className="text-6xl md:text-8xl font-cinzel text-red-600 tracking-wider drop-shadow-[0_0_15px_rgba(220,38,38,0.8)] mb-2">
             BLOOD RECALL
           </h1>
@@ -30,24 +32,35 @@ export const EntranceScreen: React.FC<EntranceScreenProps> = ({ onStartSolo, onS
         </div>
 
         {/* メニューボタンエリア */}
-        <div className="flex flex-col gap-6 w-full max-w-md animate-fade-in-up">
+        <div className="flex flex-col gap-4 w-full max-w-md animate-fade-in-up">
+          
+          <button 
+            onClick={onStartTutorial}
+            className="group relative bg-gradient-to-r from-green-950 to-black border-2 border-green-800 p-5 rounded-lg overflow-hidden hover:border-green-500 transition-all duration-300 hover:shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:scale-105"
+          >
+             <div className="absolute inset-0 bg-green-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 skew-x-12"></div>
+             <h2 className="text-xl font-cinzel font-bold text-green-100 group-hover:text-white relative z-10 flex items-center justify-center gap-3">
+               <span>🔰</span> TUTORIAL <span className="text-xs opacity-60 font-sans tracking-normal bg-green-900/50 px-2 py-1 rounded">Learn Rules</span>
+             </h2>
+          </button>
+
           <button 
             onClick={onStartSolo}
-            className="group relative bg-gradient-to-r from-red-950 to-black border-2 border-red-800 p-6 rounded-lg overflow-hidden hover:border-red-500 transition-all duration-300 hover:shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:scale-105"
+            className="group relative bg-gradient-to-r from-red-950 to-black border-2 border-red-800 p-5 rounded-lg overflow-hidden hover:border-red-500 transition-all duration-300 hover:shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:scale-105"
           >
             <div className="absolute inset-0 bg-red-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 skew-x-12"></div>
-            <h2 className="text-2xl font-cinzel font-bold text-red-100 group-hover:text-white relative z-10 flex items-center justify-center gap-3">
+            <h2 className="text-xl font-cinzel font-bold text-red-100 group-hover:text-white relative z-10 flex items-center justify-center gap-3">
               <span>⚔️</span> SOLO MODE <span className="text-xs opacity-60 font-sans tracking-normal bg-red-900/50 px-2 py-1 rounded">vs CPU</span>
             </h2>
           </button>
 
           <button 
-            onClick={() => {}} 
-            disabled
-            className="group relative bg-gray-900 border-2 border-gray-700 p-6 rounded-lg opacity-60 cursor-not-allowed"
+            onClick={onStartVersus} 
+            className="group relative bg-gradient-to-r from-blue-950 to-black border-2 border-blue-800 p-5 rounded-lg overflow-hidden hover:border-blue-500 transition-all duration-300 hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:scale-105"
           >
-            <h2 className="text-2xl font-cinzel font-bold text-gray-500 relative z-10 flex items-center justify-center gap-3">
-              <span>👥</span> VERSUS MODE <span className="text-xs font-sans tracking-normal border border-gray-600 px-2 py-1 rounded">Coming Soon</span>
+            <div className="absolute inset-0 bg-blue-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 skew-x-12"></div>
+            <h2 className="text-xl font-cinzel font-bold text-blue-100 group-hover:text-white relative z-10 flex items-center justify-center gap-3">
+              <span>👥</span> VERSUS MODE <span className="text-xs opacity-60 font-sans tracking-normal bg-blue-900/50 px-2 py-1 rounded">Online</span>
             </h2>
           </button>
 

@@ -1,7 +1,8 @@
-import { PlayerState, Card, CardType, RegaliaStats, RegaliaCard } from '../types';
+
+import { PlayerState, Card, CardType, RegaliaStats, RegaliaCard, GameState, Phase } from '../types';
 import { 
   INITIAL_LIFE, STARTER_DECK_SLASH_COUNT, STARTER_DECK_BLOOD_COUNT, 
-  createStarterSlash, createStarterBlood, BLOOD_RECALLS 
+  createStarterSlash, createStarterBlood, BLOOD_RECALLS, REGALIA_LIST, RECALL_SETS, createRecallCard
 } from '../constants/index';
 import { shuffle } from '../utils/common';
 
@@ -122,6 +123,52 @@ export const createPlayer = (id: string, name: string, isHuman: boolean, regalia
   player = drawCard(player, regalia.base.handSize);
   return player;
 };
+
+/**
+ * チュートリアル用のゲームセットアップ
+ */
+export const setupTutorialGame = (): GameState => {
+    const p1Regalia = REGALIA_LIST.find(r => r.id === 'regalia-shiragane')!; // シラガネ
+    const cpuRegalia = REGALIA_LIST.find(r => r.id === 'regalia-totsukamatsurugi')!; // トツカ（敵役）
+    
+    // プレイヤー作成
+    const player = createPlayer('p1', 'Player', true, p1Regalia, 'br-shiragane-1');
+    const cpu = createPlayer('cpu', 'CPU (Tutorial)', false, cpuRegalia, 'br-totsuka-1');
+
+    // プレイヤーの手札を調整（クラフト説明用に斬撃x2、赤血x2を確実に持たせる）
+    // 一旦手札を空にして、特定のカードを入れる
+    player.hand = [];
+    player.hand.push(createStarterSlash());
+    player.hand.push(createStarterSlash());
+    player.hand.push(createStarterBlood());
+    player.hand.push(createStarterBlood());
+    
+    // CPUのライフを調整（倒しやすくする）
+    // チュートリアルなので、CPUはアクションを行わない前提だが、ライフは20で開始し、最後は強制的に倒す
+    
+    // マーケットのセットアップ（固定）
+    const selectedSets = RECALL_SETS.slice(0, 5);
+    const recallPiles = selectedSets.map(set => {
+        const cards = set.cards.map(tmpl => createRecallCard(tmpl));
+        return cards; // ランダムにしない
+    });
+
+    return {
+        phase: Phase.Main,
+        turnPlayerId: 'p1',
+        firstPlayerId: 'p1',
+        players: { player, cpu },
+        market: {
+            recallPiles: recallPiles,
+            artsDeckSlash: [],
+            artsDeckBlood: []
+        },
+        log: ['--- Tutorial Start ---'],
+        isTutorial: true,
+        tutorialStep: 0
+    };
+};
+
 
 /**
  * 神器覚醒チェックを行う関数
